@@ -180,6 +180,21 @@ struct LabelWidget : widget::TransparentWidget {
 	}
 };
 
+// ---------- 灰色细线分组框（2026-08-18 用户指示） ----------
+struct FrameWidget : widget::TransparentWidget {
+	engine::Module* module = nullptr;
+
+	void draw(const DrawArgs& args) override {
+		const Theme& t = themeFor(module);
+		NVGcontext* vg = args.vg;
+		nvgBeginPath(vg);
+		nvgRoundedRect(vg, 0.0f, 0.0f, box.size.x, box.size.y, 2.0f);
+		nvgStrokeColor(vg, t.panelLine);
+		nvgStrokeWidth(vg, 1.0f);
+		nvgStroke(vg);
+	}
+};
+
 // ---------- 主题感知自绘旋钮（极简细件 + 刻度, 2026-08-17 定稿;
 //      2026-08-18 修订: 极值角度与 Rack 大多数模块一致, 不显示数值） ----------
 struct ThemedKnob : app::Knob {

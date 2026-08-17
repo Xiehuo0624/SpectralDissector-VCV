@@ -5,6 +5,20 @@
 // 标签: sdpanel::LabelWidget（nvgText 真实字体, 2026-08-18 起;
 //        SVG 不再生成点阵 path）。
 // ============================================================
+{
+	auto* f = new sdpanel::FrameWidget;
+	f->module = module;
+	f->box.pos = mm2px(Vec(270.0f, 3.4f));
+	f->box.size = mm2px(Vec(36.0f, 52.0f));
+	addChild(f);
+}
+{
+	auto* f = new sdpanel::FrameWidget;
+	f->module = module;
+	f->box.pos = mm2px(Vec(234.0f, 3.4f));
+	f->box.size = mm2px(Vec(36.0f, 52.0f));
+	addChild(f);
+}
 addInput(createInputCentered<sdpanel::ThemedPort>(mm2px(Vec(10.5f, 118.5f)), module, SpectralDissectorModule::INPUT_AUDIO));
 // analyzer (140.0 × 99.0)mm
 {
@@ -22,30 +36,30 @@ addParam(createParamCentered<sdpanel::ThemedKnob>(mm2px(Vec(225.0f, 16.0f)), mod
 	addParam(w);
 }
 addInput(createInputCentered<sdpanel::ThemedPort>(mm2px(Vec(225.0f, 48.0f)), module, SpectralDissectorModule::INPUT_CV_SPACING));
-addParam(createParamCentered<sdpanel::ThemedKnob>(mm2px(Vec(243.0f, 16.0f)), module, SpectralDissectorModule::PARAM_GATE));
+addParam(createParamCentered<sdpanel::ThemedKnob>(mm2px(Vec(279.0f, 16.0f)), module, SpectralDissectorModule::PARAM_GATE));
 {
-	auto* w = createParam<sdpanel::ThemedKnob>(mm2px(Vec(243.0f, 32.0f)), module, SpectralDissectorModule::PARAM_CVATT_GATE);
+	auto* w = createParam<sdpanel::ThemedKnob>(mm2px(Vec(279.0f, 32.0f)), module, SpectralDissectorModule::PARAM_CVATT_GATE);
 	w->box.size = mm2px(Vec(7.5f, 7.5f));
 	w->box.pos = w->box.pos.minus(w->box.size.div(2.0f));
 	addParam(w);
 }
-addInput(createInputCentered<sdpanel::ThemedPort>(mm2px(Vec(243.0f, 48.0f)), module, SpectralDissectorModule::INPUT_CV_GATE));
-addParam(createParamCentered<sdpanel::ThemedKnob>(mm2px(Vec(261.0f, 16.0f)), module, SpectralDissectorModule::PARAM_BLUR));
+addInput(createInputCentered<sdpanel::ThemedPort>(mm2px(Vec(279.0f, 48.0f)), module, SpectralDissectorModule::INPUT_CV_GATE));
+addParam(createParamCentered<sdpanel::ThemedKnob>(mm2px(Vec(243.0f, 16.0f)), module, SpectralDissectorModule::PARAM_BLUR));
 {
-	auto* w = createParam<sdpanel::ThemedKnob>(mm2px(Vec(261.0f, 32.0f)), module, SpectralDissectorModule::PARAM_CVATT_BLUR);
+	auto* w = createParam<sdpanel::ThemedKnob>(mm2px(Vec(243.0f, 32.0f)), module, SpectralDissectorModule::PARAM_CVATT_BLUR);
 	w->box.size = mm2px(Vec(7.5f, 7.5f));
 	w->box.pos = w->box.pos.minus(w->box.size.div(2.0f));
 	addParam(w);
 }
-addInput(createInputCentered<sdpanel::ThemedPort>(mm2px(Vec(261.0f, 48.0f)), module, SpectralDissectorModule::INPUT_CV_BLUR));
-addParam(createParamCentered<sdpanel::ThemedKnob>(mm2px(Vec(279.0f, 16.0f)), module, SpectralDissectorModule::PARAM_PERC));
+addInput(createInputCentered<sdpanel::ThemedPort>(mm2px(Vec(243.0f, 48.0f)), module, SpectralDissectorModule::INPUT_CV_BLUR));
+addParam(createParamCentered<sdpanel::ThemedKnob>(mm2px(Vec(261.0f, 16.0f)), module, SpectralDissectorModule::PARAM_PERC));
 {
-	auto* w = createParam<sdpanel::ThemedKnob>(mm2px(Vec(279.0f, 32.0f)), module, SpectralDissectorModule::PARAM_CVATT_PERC);
+	auto* w = createParam<sdpanel::ThemedKnob>(mm2px(Vec(261.0f, 32.0f)), module, SpectralDissectorModule::PARAM_CVATT_PERC);
 	w->box.size = mm2px(Vec(7.5f, 7.5f));
 	w->box.pos = w->box.pos.minus(w->box.size.div(2.0f));
 	addParam(w);
 }
-addInput(createInputCentered<sdpanel::ThemedPort>(mm2px(Vec(279.0f, 48.0f)), module, SpectralDissectorModule::INPUT_CV_PERC));
+addInput(createInputCentered<sdpanel::ThemedPort>(mm2px(Vec(261.0f, 48.0f)), module, SpectralDissectorModule::INPUT_CV_PERC));
 addParam(createParamCentered<sdpanel::ThemedKnob>(mm2px(Vec(297.0f, 16.0f)), module, SpectralDissectorModule::PARAM_DETAIL));
 {
 	auto* w = createParam<sdpanel::ThemedKnob>(mm2px(Vec(297.0f, 32.0f)), module, SpectralDissectorModule::PARAM_CVATT_DETAIL);
@@ -322,7 +336,7 @@ addOutput(createOutputCentered<sdpanel::ThemedPort>(mm2px(Vec(315.0f, 118.5f)), 
 	lw->fontSize = 7.0f;
 	lw->center = true;
 	lw->module = module;
-	lw->box.pos = mm2px(Vec(239.383f, 3.952f));
+	lw->box.pos = mm2px(Vec(275.383f, 3.952f));
 	lw->box.size = mm2px(Vec(7.234f, 3.725f));
 	addChild(lw);
 }
@@ -332,7 +346,7 @@ addOutput(createOutputCentered<sdpanel::ThemedPort>(mm2px(Vec(315.0f, 118.5f)), 
 	lw->fontSize = 7.0f;
 	lw->center = true;
 	lw->module = module;
-	lw->box.pos = mm2px(Vec(257.383f, 3.952f));
+	lw->box.pos = mm2px(Vec(239.383f, 3.952f));
 	lw->box.size = mm2px(Vec(7.234f, 3.725f));
 	addChild(lw);
 }
@@ -342,7 +356,7 @@ addOutput(createOutputCentered<sdpanel::ThemedPort>(mm2px(Vec(315.0f, 118.5f)), 
 	lw->fontSize = 7.0f;
 	lw->center = true;
 	lw->module = module;
-	lw->box.pos = mm2px(Vec(275.383f, 3.952f));
+	lw->box.pos = mm2px(Vec(257.383f, 3.952f));
 	lw->box.size = mm2px(Vec(7.234f, 3.725f));
 	addChild(lw);
 }

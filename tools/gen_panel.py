@@ -282,7 +282,12 @@ def svg_panel(layout, pal):
     for w in layout["widgets"]:
         t = w["type"]
         x, y = w["x"], w["y"]
-        if t == "label":
+        if t == "frame":
+            aw, ah = px(w.get("w", 30)), px(w.get("h", 30))
+            parts.append('<rect x="%s" y="%s" width="%s" height="%s" rx="2" fill="none" '
+                         'stroke="%s" stroke-width="1"/>'
+                         % (f2(px(x)), f2(px(y)), f2(aw), f2(ah), pal["line"]))
+        elif t == "label":
             # 2026-08-18 修订: 标签不再生成 SVG path（5×7 点阵伪影,
             # 深主题不清晰）。Rack 运行时由 panel_layout.inc 生成的
             # sdpanel::LabelWidget 用 nvgText 真实字体绘制; SVG 仅作
@@ -414,6 +419,14 @@ def cpp_widgets(layout):
         elif t == "output":
             L.append("addOutput(createOutputCentered<sdpanel::ThemedPort>(mm2px(Vec(%sf, %sf)), "
                      "module, SpectralDissectorModule::%s));" % (x, y, bind))
+        elif t == "frame":
+            L.append("{")
+            L.append("\tauto* f = new sdpanel::FrameWidget;")
+            L.append("\tf->module = module;")
+            L.append("\tf->box.pos = mm2px(Vec(%sf, %sf));" % (x, y))
+            L.append("\tf->box.size = mm2px(Vec(%sf, %sf));" % (f2(w.get("w", 30)), f2(w.get("h", 30))))
+            L.append("\taddChild(f);")
+            L.append("}")
         elif t == "switch":
             L.append("addParam(createParamCentered<sdpanel::ThemedSwitch>(mm2px(Vec(%sf, %sf)), "
                      "module, SpectralDissectorModule::%s));" % (x, y, bind))
