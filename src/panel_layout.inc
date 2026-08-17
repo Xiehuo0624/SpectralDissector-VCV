@@ -327,7 +327,7 @@ addOutput(createOutputCentered<sdpanel::ThemedPort>(mm2px(Vec(315.0f, 118.5f)), 
 	lw->center = false;
 	lw->dim = true;
 	lw->module = module;
-	lw->box.pos = mm2px(Vec(64.0f, 4.297f));
+	lw->box.pos = mm2px(Vec(65.5f, 4.297f));
 	lw->box.size = mm2px(Vec(15.213f, 5.08f));
 	addChild(lw);
 }
