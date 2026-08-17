@@ -12,6 +12,7 @@
 // GNU General Public License for more details.
 #include "Cepstrum.hpp"
 
+#include <algorithm>
 #include <cmath>
 
 #include <dsp/fft.hpp>   // rack::dsp::RealFFT
@@ -20,22 +21,46 @@ namespace sdrack {
 
 namespace {
     constexpr float kEps = 1e-10f;   // log(mag+eps) 保护, 同 golden
-    // golden inverse 含 1/N, RealFFT::irfft 含 N 倍 ⇒ ×(1/N) 恢复口径
-    constexpr float kInvN = 1.0f / (float)kFFTSize;
 }
 
 Cepstrum::Cepstrum() = default;
 
 Cepstrum::~Cepstrum() = default;
 
-void Cepstrum::prepare(double sampleRate)
+void Cepstrum::prepare(double sampleRate, int fftSize)
 {
     sampleRate_ = sampleRate;
-    fft_.reset(new rack::dsp::RealFFT(kFFTSize));
-    specIn_.assign(kFFTSize * 2, 0.0f);
-    cep_.assign(kFFTSize, 0.0f);
-    fftOut_.assign(kFFTSize * 2, 0.0f);
-    env_.assign(kNumBins, 0.0f);
+    if (!isValidFftSize(fftSize))
+        fftSize = kDefaultFFTSize;
+    // 全部可选 size 的 pffft plan 预分配; 缓冲按最大 N 一次分配。
+    for (int i = 0; i < kNumFftSizes; ++i)
+        fft_[i].reset(new rack::dsp::RealFFT(kFftSizes[i]));
+    specIn_.assign(kMaxFFTSize * 2, 0.0f);
+    cep_.assign(kMaxFFTSize, 0.0f);
+    fftOut_.assign(kMaxFFTSize * 2, 0.0f);
+    env_.assign(kMaxBins, 0.0f);
+    setFftSize(fftSize);
+    reset();
+}
+
+void Cepstrum::setFftSize(int fftSize)
+{
+    if (!isValidFftSize(fftSize))
+        fftSize = kDefaultFFTSize;
+    fftSize_    = fftSize;
+    fftSizeIdx_ = fftSizeIndex(fftSize);
+    numBins_    = numBinsForFftSize(fftSize);
+    binSlices_  = binSlicesForFftSize(fftSize);
+    cepSlices_  = cepSlicesForFftSize(fftSize);
+    invN_       = 1.0f / (float)fftSize_;
+}
+
+void Cepstrum::reset()
+{
+    std::fill(specIn_.begin(), specIn_.end(), 0.0f);
+    std::fill(cep_.begin(), cep_.end(), 0.0f);
+    std::fill(fftOut_.begin(), fftOut_.end(), 0.0f);
+    std::fill(env_.begin(), env_.end(), 0.0f);
     detail_ = 1.0f;
 }
 
@@ -43,8 +68,8 @@ void Cepstrum::prepare(double sampleRate)
 void Cepstrum::buildSpectrum(const float* harmRaw)
 {
     specIn_[0] = std::log(harmRaw[0] + kEps);
-    specIn_[1] = std::log(harmRaw[kNumBins - 1] + kEps);
-    for (int k = 1; k < kNumBins - 1; ++k) {
+    specIn_[1] = std::log(harmRaw[numBins_ - 1] + kEps);
+    for (int k = 1; k < numBins_ - 1; ++k) {
         float lm = std::log(harmRaw[k] + kEps);
         specIn_[2 * k]     = lm;
         specIn_[2 * k + 1] = 0.0f;
@@ -54,14 +79,15 @@ void Cepstrum::buildSpectrum(const float* harmRaw)
 // 2+3. irfft 后 ×(1/N) 恢复 golden 口径, 再对称带切 lifter（每切片 512 点）
 void Cepstrum::scaleAndLifter(int slice)
 {
-    float A = (1.0f - detail_) * 0.25f * kSpesize;
-    float B = (1.0f - (1.0f - detail_) * 0.25f) * kSpesize;
+    float spesize = (float)numBins_;
+    float A = (1.0f - detail_) * 0.25f * spesize;
+    float B = (1.0f - (1.0f - detail_) * 0.25f) * spesize;
     int n0 = slice * kCepSlice;
     int n1 = n0 + kCepSlice;
-    const int half = kFFTSize / 2;
+    const int half = fftSize_ / 2;
     for (int n = n0; n < n1; ++n) {
-        cep_[n] *= kInvN;
-        float q = (n <= half) ? (float)n : (float)(kFFTSize - n);
+        cep_[n] *= invN_;
+        float q = (n <= half) ? (float)n : (float)(fftSize_ - n);
         if (!((q < A) || (q >= B)))
             cep_[n] = 0.0f;
     }
@@ -71,10 +97,10 @@ void Cepstrum::scaleAndLifter(int slice)
 void Cepstrum::extractEnv(int slice)
 {
     int k0 = slice * kBinSlice;
-    int k1 = (k0 + kBinSlice < kNumBins) ? (k0 + kBinSlice) : kNumBins;
+    int k1 = (k0 + kBinSlice < numBins_) ? (k0 + kBinSlice) : numBins_;
     for (int k = k0; k < k1; ++k) {
         float re = (k == 0) ? fftOut_[0]
-                 : (k == kNumBins - 1) ? fftOut_[1]
+                 : (k == numBins_ - 1) ? fftOut_[1]
                  : fftOut_[2 * k];
         env_[k] = std::exp(re);
     }
@@ -82,21 +108,22 @@ void Cepstrum::extractEnv(int slice)
 
 void Cepstrum::runFrameStep(int step, const float* harmRaw, float detail)
 {
+    auto& fft = *fft_[fftSizeIdx_];
     if (step == 0) {
         detail_ = detail;
         buildSpectrum(harmRaw);
     }
     else if (step == 1) {
-        fft_->irfft(specIn_.data(), cep_.data());   // 含 N 倍增益
+        fft.irfft(specIn_.data(), cep_.data());   // 含 N 倍增益
     }
-    else if (step < 1 + 1 + kNumCepSlices) {
-        scaleAndLifter(step - 2);                    // ×(1/N) + lifter
+    else if (step < 2 + cepSlices_) {
+        scaleAndLifter(step - 2);                 // ×(1/N) + lifter
     }
-    else if (step == 1 + 1 + kNumCepSlices) {
-        fft_->rfft(cep_.data(), fftOut_.data());     // forward, 无归一化
+    else if (step == 2 + cepSlices_) {
+        fft.rfft(cep_.data(), fftOut_.data());    // forward, 无归一化
     }
     else {
-        extractEnv(step - (1 + 1 + kNumCepSlices + 1));
+        extractEnv(step - (3 + cepSlices_));
     }
 }
 

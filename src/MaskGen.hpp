@@ -34,7 +34,8 @@ namespace sdrack {
 class MaskGen
 {
 public:
-    void prepare(double sampleRate);
+    void prepare(double sampleRate, int fftSize = kDefaultFFTSize);
+    void setFftSize(int fftSize);
     void reset();
 
     // magHarmRaw: HpssCore out1（原始量级）; envRaw: Cepstrum env（原始量级）
@@ -46,8 +47,10 @@ private:
         float gateSmooth = 0.0f;   // 归一化域
         float magEnv     = 0.0f;   // 归一化域
     };
-    std::vector<State> states_;    // size kNumBins
+    std::vector<State> states_;    // 按最大 bin 数预分配
     double sampleRate_ = 44100.0;
+    int   fftSize_ = kDefaultFFTSize;
+    float magNormDenom_ = kMagNormDenom;   // fftSize * 0.5
 };
 
 } // namespace sdrack

@@ -146,6 +146,10 @@ struct SpectralDissectorModule : Module {
 	// 2026-08-18 用户指示: 深浅主题改为每模块独立设置,
 	// 不再切换 Rack 全局 preferDarkPanels（原生模块不受影响）。
 	bool panelDark_ = true;
+	// 2026-08-19 用户指示: FFT window size 入右键菜单。
+	// 模块保存用户选择（随 patch 持久化）; engine.requestFftSize() 把
+	// 请求交给音频线程下一采样无分配切换（pffft plan 已在 prepare 预分配）。
+	int fftSize_ = sdrack::kDefaultFFTSize;
 
 	SpectralDissectorModule() {
 		config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
@@ -209,11 +213,13 @@ struct SpectralDissectorModule : Module {
 
 	void onSampleRateChange(const SampleRateChangeEvent& e) override {
 		lastSampleRate_ = e.sampleRate;
+		engine.requestFftSize(fftSize_);
 		engine.prepare(e.sampleRate);
 	}
 
 	void onReset() override {
-		// 引擎状态清零（参数值由 Rack 复位）
+		// 引擎状态清零（参数值由 Rack 复位; FFT size 选择保留）
+		engine.requestFftSize(fftSize_);
 		engine.prepare(lastSampleRate_);
 	}
 
@@ -222,9 +228,17 @@ struct SpectralDissectorModule : Module {
 		sdpanel::setModuleDark(this, dark);
 	}
 
+	void setFftSize(int n) {
+		if (!sdrack::isValidFftSize(n) || n == fftSize_)
+			return;
+		fftSize_ = n;
+		engine.requestFftSize(n);
+	}
+
 	json_t* dataToJson() override {
 		json_t* rootJ = json_object();
 		json_object_set_new(rootJ, "panelDark", json_boolean(panelDark_));
+		json_object_set_new(rootJ, "fftSize", json_integer(fftSize_));
 		return rootJ;
 	}
 
@@ -232,6 +246,9 @@ struct SpectralDissectorModule : Module {
 		json_t* j = json_object_get(rootJ, "panelDark");
 		if (j)
 			setPanelDark(json_boolean_value(j));
+		j = json_object_get(rootJ, "fftSize");
+		if (j && json_is_integer(j))
+			setFftSize((int)json_integer_value(j));
 	}
 
 	void process(const ProcessArgs& args) override {
@@ -405,12 +422,17 @@ struct SpectrumAnalyzerWidget : widget::TransparentWidget {
 			nvgLineTo(vg, specX + specW, gy);
 		}
 		double sr = module ? module->engine.sampleRate() : 0.0;
+		// 2026-08-19: 谱区几何随右键选择的 FFT size 变化（bin 数/满幅参照
+		// 均取当前 size; 默认 4096 与旧显示逐像素一致）。
+		int fftN = module ? module->engine.fftSize() : sdrack::kDefaultFFTSize;
+		int bins = sdrack::numBinsForFftSize(fftN);
+		float fftRef = (float)(fftN / 4);
 		if (sr > 0.0) {
 			for (float f : {100.0f, 1000.0f, 10000.0f}) {
-				float k = (float)(f * sdrack::kFFTSize / sr);
-				if (k >= sdrack::kNumBins)
+				float k = (float)(f * fftN / sr);
+				if (k >= bins)
 					continue;
-				float gx = specX + specW * k / (float)(sdrack::kNumBins - 1);
+				float gx = specX + specW * k / (float)(bins - 1);
 				nvgMoveTo(vg, gx, specY);
 				nvgLineTo(vg, gx, specY + specH);
 			}
@@ -431,10 +453,10 @@ struct SpectrumAnalyzerWidget : widget::TransparentWidget {
 		nvgTextAlign(vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
 		if (sr > 0.0) {
 			for (float f : {100.0f, 1000.0f, 10000.0f}) {
-				float k = (float)(f * sdrack::kFFTSize / sr);
-				if (k >= sdrack::kNumBins)
+				float k = (float)(f * fftN / sr);
+				if (k >= bins)
 					continue;
-				float gx = specX + specW * k / (float)(sdrack::kNumBins - 1);
+				float gx = specX + specW * k / (float)(bins - 1);
 				const char* lab = (f == 100.0f) ? "100" : (f == 1000.0f) ? "1k" : "10k";
 				// 文字底 = 图例顶 − 2.5px ⇒ 整行落在谱底→图例之间的 11px 空隙内,
 				// 与芯片零重叠（此前 TOP@谱底+2 与芯片顶重叠 ~2.5px）
@@ -456,10 +478,10 @@ struct SpectrumAnalyzerWidget : widget::TransparentWidget {
 				nvgBeginPath(vg);
 				nvgMoveTo(vg, specX, specY + specH);
 				for (int x = 0; x < cols; ++x) {
-					int k0 = x * sdrack::kNumBins / cols;
-					int k1 = (x + 1) * sdrack::kNumBins / cols;
+					int k0 = x * bins / cols;
+					int k1 = (x + 1) * bins / cols;
 					float v = sdpanel::spectrumColumnMax(data, k0, k1);
-					float y = specY + specH * (1.0f - sdpanel::spectrumLevel(v, log));
+					float y = specY + specH * (1.0f - sdpanel::spectrumLevel(v, log, fftRef));
 					nvgLineTo(vg, specX + (float)x + 0.5f, y);
 				}
 				nvgLineTo(vg, specX + specW, specY + specH);
@@ -511,6 +533,11 @@ struct SpectrumAnalyzerWidget : widget::TransparentWidget {
 				[=]() { module->spectrumLogScale_ = !module->spectrumLogScale_; }));
 			menu->addChild(createMenuItem("Use dark panels", CHECKMARK(module->panelDark_),
 				[=]() { module->setPanelDark(!module->panelDark_); }));
+			menu->addChild(createMenuLabel("FFT window size"));
+			for (int n : sdrack::kFftSizes) {
+				menu->addChild(createMenuItem(std::to_string(n), CHECKMARK(module->fftSize_ == n),
+					[=]() { module->setFftSize(n); }));
+			}
 			menu->addChild(createMenuLabel("Legend chip click = band on/off"));
 			e.consume(this);
 			return;
@@ -555,6 +582,7 @@ struct SpectralDissectorWidget : ModuleWidget {
 
 	// 2026-08-18 用户指示: 深浅主题切换放入模块右键菜单;
 	// 只切换本模块 panelDark_, 不影响 Rack 全局/原生模块。
+	// 2026-08-19 用户指示: FFT window size 也入右键菜单。
 	void appendContextMenu(ui::Menu* menu) override {
 		auto* m = dynamic_cast<SpectralDissectorModule*>(module);
 		if (!m)
@@ -563,6 +591,12 @@ struct SpectralDissectorWidget : ModuleWidget {
 		menu->addChild(createMenuLabel("Panel theme"));
 		menu->addChild(createMenuItem("Use dark panels", CHECKMARK(m->panelDark_),
 			[=]() { m->setPanelDark(!m->panelDark_); }));
+		menu->addChild(new ui::MenuSeparator);
+		menu->addChild(createMenuLabel("FFT window size"));
+		for (int n : sdrack::kFftSizes) {
+			menu->addChild(createMenuItem(std::to_string(n), CHECKMARK(m->fftSize_ == n),
+				[=]() { m->setFftSize(n); }));
+		}
 	}
 };
 

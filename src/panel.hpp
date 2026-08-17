@@ -118,11 +118,13 @@ inline const NVGcolor& bandColor(int b)   // b=0..9 → B1..B10
 }
 
 // ---------- 分析仪显示刻度（plugin.cpp 分析仪 widget 共用, 可单测） ----------
-// |X| 满幅正弦 bin 幅度 = A·N/4 = 1024（mag_raw 口径, docs/00 §9）→ 0 dB 参照;
+// |X| 满幅正弦 bin 幅度 = A·N/4（mag_raw 口径, docs/00 §9）→ 0 dB 参照;
+// 默认 ref = 4096/4 = 1024（黄金口径）。FFT size 切换后传 N/4。
 // 线性 0..1 / 对数 −80..0 dB → 0..1, 均钳位且负值/零 → 0。
-inline float spectrumLevel(float v, bool log)
+inline float spectrumLevel(float v, bool log, float ref = 1024.0f)
 {
-	const float ref = 1024.0f;
+	if (ref <= 0.0f)
+		ref = 1024.0f;
 	if (!log)
 		return std::fmax(std::fmin(v / ref, 1.0f), 0.0f);
 	if (v <= 0.0f)

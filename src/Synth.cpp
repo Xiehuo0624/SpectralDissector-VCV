@@ -12,6 +12,7 @@
 // GNU General Public License for more details.
 #include "Synth.hpp"
 
+#include <algorithm>
 #include <cmath>
 
 #include <dsp/fft.hpp>   // rack::dsp::RealFFT (pffft, 约束.md §4.2)
@@ -19,8 +20,6 @@
 namespace sdrack {
 
 namespace {
-    // golden Radix2FFT inverse 含 1/N; RealFFT::irfft 含 N 倍 ⇒ ×(1/N) 恢复同口径
-    constexpr float kInvN = 1.0f / (float)kFFTSize;
     // 恒等重构: 4 帧 overlap-add Σw² = 1.5 ⇒ normGain = 2/3 (docs/02 §1)
     constexpr float kNormGain = 2.0f / 3.0f;
 }
@@ -39,17 +38,45 @@ Synth::Synth() = default;
 
 Synth::~Synth() = default;
 
-void Synth::prepare(double sampleRate)
+void Synth::prepare(double sampleRate, int fftSize)
 {
     (void)sampleRate;   // 合成端不依赖采样率（golden Synth::prepare 仅存快照）
-    fft_.reset(new rack::dsp::RealFFT(kFFTSize));
-    window_ = makeHannWindow(kFFTSize);
-    specInL_.assign(kFFTSize * 2, 0.0f);
-    specInR_.assign(kFFTSize * 2, 0.0f);
-    irfftOutL_.assign(kFFTSize, 0.0f);
-    irfftOutR_.assign(kFFTSize, 0.0f);
-    outBufL_.assign(kFFTSize * 2, 0.0f);
-    outBufR_.assign(kFFTSize * 2, 0.0f);
+    if (!isValidFftSize(fftSize))
+        fftSize = kDefaultFFTSize;
+    // 全部可选 size 的 pffft plan 与 Hann 窗预分配; 缓冲按最大 N 一次分配。
+    for (int i = 0; i < kNumFftSizes; ++i) {
+        fft_[i].reset(new rack::dsp::RealFFT(kFftSizes[i]));
+        window_[i] = makeHannWindow(kFftSizes[i]);
+    }
+    specInL_.assign(kMaxFFTSize * 2, 0.0f);
+    specInR_.assign(kMaxFFTSize * 2, 0.0f);
+    irfftOutL_.assign(kMaxFFTSize, 0.0f);
+    irfftOutR_.assign(kMaxFFTSize, 0.0f);
+    outBufL_.assign(kMaxFFTSize * 2, 0.0f);
+    outBufR_.assign(kMaxFFTSize * 2, 0.0f);
+    setFftSize(fftSize);
+    reset();
+}
+
+void Synth::setFftSize(int fftSize)
+{
+    if (!isValidFftSize(fftSize))
+        fftSize = kDefaultFFTSize;
+    fftSize_    = fftSize;
+    fftSizeIdx_ = fftSizeIndex(fftSize);
+    numBins_    = numBinsForFftSize(fftSize);
+    hop_        = hopForFftSize(fftSize);
+    invN_       = 1.0f / (float)fftSize_;
+}
+
+void Synth::reset()
+{
+    std::fill(specInL_.begin(), specInL_.end(), 0.0f);
+    std::fill(specInR_.begin(), specInR_.end(), 0.0f);
+    std::fill(irfftOutL_.begin(), irfftOutL_.end(), 0.0f);
+    std::fill(irfftOutR_.begin(), irfftOutR_.end(), 0.0f);
+    std::fill(outBufL_.begin(), outBufL_.end(), 0.0f);
+    std::fill(outBufR_.begin(), outBufR_.end(), 0.0f);
     readPos_ = 0;
 }
 
@@ -63,10 +90,10 @@ void Synth::buildSpectrum(int band, const float* masks[9], const float* percMask
 
     specInL_[0] = m[0] * fftOutL[0];
     specInR_[0] = m[0] * fftOutR[0];
-    // Nyquist bin: golden Analysis 对 mag/phase[2048] 置零 ⇒ spec[2048]=0
+    // Nyquist bin: golden Analysis 对 mag/phase[N/2] 置零 ⇒ spec[N/2]=0
     specInL_[1] = 0.0f;
     specInR_[1] = 0.0f;
-    for (int k = 1; k < kNumBins - 1; ++k) {
+    for (int k = 1; k < numBins_ - 1; ++k) {
         float mkV = m[k];
         specInL_[2 * k]     = mkV * fftOutL[2 * k];
         specInL_[2 * k + 1] = mkV * fftOutL[2 * k + 1];
@@ -79,25 +106,27 @@ void Synth::buildSpectrum(int band, const float* masks[9], const float* percMask
 // 本实现: irfftOut[n]（含 N 倍）× (1/N) × window[n] × (2/3), 逐位同式。
 void Synth::windowAccum()
 {
-    const int mask = 2 * kFFTSize - 1;   // 2N = 2¹³, 掩码 ≡ 取模
+    const int mask = 2 * fftSize_ - 1;   // 2N 为 2 的幂, 掩码 ≡ 取模
+    const std::vector<float>& win = window_[fftSizeIdx_];
     int w = readPos_;
-    for (int n = 0; n < kFFTSize; ++n) {
-        float sL = (irfftOutL_[n] * kInvN) * window_[n] * kNormGain;
-        float sR = (irfftOutR_[n] * kInvN) * window_[n] * kNormGain;
+    for (int n = 0; n < fftSize_; ++n) {
+        float sL = (irfftOutL_[n] * invN_) * win[n] * kNormGain;
+        float sR = (irfftOutR_[n] * invN_) * win[n] * kNormGain;
         outBufL_[(w + n) & mask] += sL;
         outBufR_[(w + n) & mask] += sR;
     }
-    readPos_ = (readPos_ + kHop) & mask;
+    readPos_ = (readPos_ + hop_) & mask;
 }
 
 void Synth::runStep(int sub, int band,
                     const float* masks[9], const float* percMask,
                     const float* fftOutL, const float* fftOutR)
 {
+    auto& fft = *fft_[fftSizeIdx_];
     switch (sub) {
         case 0: buildSpectrum(band, masks, percMask, fftOutL, fftOutR); break;
-        case 1: fft_->irfft(specInL_.data(), irfftOutL_.data()); break;
-        case 2: fft_->irfft(specInR_.data(), irfftOutR_.data()); break;
+        case 1: fft.irfft(specInL_.data(), irfftOutL_.data()); break;
+        case 2: fft.irfft(specInR_.data(), irfftOutR_.data()); break;
         case 3: windowAccum(); break;
         default: break;
     }
@@ -105,8 +134,8 @@ void Synth::runStep(int sub, int band,
 
 void Synth::pullSamples(float* dstL, float* dstR, int numSamples)
 {
-    const int mask = 2 * kFFTSize - 1;
-    int start = (readPos_ - kHop + 2 * kFFTSize) & mask;
+    const int mask = 2 * fftSize_ - 1;
+    int start = (readPos_ - hop_ + 2 * fftSize_) & mask;
     for (int i = 0; i < numSamples; ++i) {
         int idx = (start + i) & mask;
         dstL[i] = outBufL_[idx];

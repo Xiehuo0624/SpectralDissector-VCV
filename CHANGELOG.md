@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Right-click menu: selectable FFT window size (1024 / 2048 / 4096 / 8192, Hann + 4x overlap). Default remains 4096 (original 26.08.13 behavior). Saved with the patch.
+
 ## 2.0.0 — 2026-08-18
 
 - Initial public release for VCV Rack 2.

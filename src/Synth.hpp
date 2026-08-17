@@ -32,6 +32,7 @@
 //   （≤1 次 4096 点 irfft）; 10 band 独立实例, 由 DspEngine 编排。
 // ============================================================
 #pragma once
+#include <array>
 #include <memory>
 #include <vector>
 
@@ -50,7 +51,12 @@ public:
     Synth();
     ~Synth();
 
-    void prepare(double sampleRate);
+    void prepare(double sampleRate, int fftSize = kDefaultFFTSize);
+    void setFftSize(int fftSize);
+    void reset();
+
+    int fftSize() const { return fftSize_; }
+    int hop() const { return hop_; }
 
     // band: 0..8 → Band1..9（masks[band]）; 9 → Band10（percMask）
     // fftOutL/R: Analysis 的原始复 FFT 输出（canonical 序, 2N float）
@@ -58,7 +64,7 @@ public:
                  const float* masks[9], const float* percMask,
                  const float* fftOutL, const float* fftOutR);
 
-    // 读出最近一跳的 1024 样本并清零（对齐 golden Synth::pullSamples）
+    // 读出最近一跳的 hop 样本并清零（对齐 golden Synth::pullSamples）
     void pullSamples(float* dstL, float* dstR, int numSamples);
 
 private:
@@ -66,11 +72,17 @@ private:
                        const float* fftOutL, const float* fftOutR);
     void windowAccum();
 
-    std::unique_ptr<rack::dsp::RealFFT> fft_;
-    std::vector<float> window_;              // 合成 Hann (size N)
-    std::vector<float> specInL_, specInR_;   // irfft 输入 (2N, canonical 序)
-    std::vector<float> irfftOutL_, irfftOutR_;  // irfft 输出 (N, 实)
-    std::vector<float> outBufL_, outBufR_;   // 输出环形缓冲 (2N, overlap-add)
+    std::array<std::unique_ptr<rack::dsp::RealFFT>, kNumFftSizes> fft_;
+    std::array<std::vector<float>, kNumFftSizes> window_;  // 每 size 合成 Hann
+    std::vector<float> specInL_, specInR_;   // irfft 输入（最大 2N, canonical 序）
+    std::vector<float> irfftOutL_, irfftOutR_;  // irfft 输出（最大 N, 实）
+    std::vector<float> outBufL_, outBufR_;   // 输出环形缓冲（最大 2N, overlap-add）
+
+    int fftSize_    = kDefaultFFTSize;
+    int fftSizeIdx_ = fftSizeIndex(kDefaultFFTSize);
+    int numBins_    = numBinsForFftSize(kDefaultFFTSize);
+    int hop_        = hopForFftSize(kDefaultFFTSize);
+    float invN_     = 1.0f / (float)kDefaultFFTSize;
     int readPos_ = 0;
 };
 

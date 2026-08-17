@@ -2,7 +2,7 @@
 
 VCV Rack 2 module — a high-fidelity port of **Spectral Dissector 26.08.13 (Max for Live)** by Xiehuo.
 
-A real-time 10-band spectral dissector: 4096-point STFT (Hann, hop 1024, 4x overlap), zero-latency per-bin HPSS, cepstral noise-floor envelope, and cascade masks split the input into 8 harmonic layers (Band 1–8), noise (Band 9), and percussive content (Band 10). Default parameter behavior is verified sample-exact against the 26.08.13 golden model. Original Max for Live device page: https://caohaoxuan.com/project-template.html?project=spectral-dissector
+A real-time 10-band spectral dissector: 4096-point STFT by default (Hann, hop 1024, 4x overlap), zero-latency per-bin HPSS, cepstral noise-floor envelope, and cascade masks split the input into 8 harmonic layers (Band 1–8), noise (Band 9), and percussive content (Band 10). The FFT window size can be switched from the right-click menu (1024 / 2048 / 4096 / 8192; still Hann, 4x overlap). Default parameter behavior is verified sample-exact against the 26.08.13 golden model. Original Max for Live device page: https://caohaoxuan.com/project-template.html?project=spectral-dissector
 
 ## I/O
 
@@ -17,6 +17,7 @@ A real-time 10-band spectral dissector: 4096-point STFT (Hann, hop 1024, 4x over
 - 46 parameters: core DSP controls (Threshold, Spacing, Focus, Tilt, Gate, Blur, Perc, Rise, Fall, Detail, Band 1–7 Offset), Dry switch, 10 band on/off switches, 10 per-band gain faders, 8 CV attenuators.
 - Built-in spectrum analyzer: click the legend chips at the bottom to toggle bands; right-click the analyzer to switch log/linear scale.
 - Dark and light panels: right-click the module and toggle **Panel theme → Use dark panels**. The setting is per-module and saved with the patch; it does not change Rack's global panel theme.
+- FFT window size: right-click the module (or the analyzer) and choose **FFT window size → 1024 / 2048 / 4096 / 8192**. Default is 4096 (original 26.08.13 behavior). The choice is saved with the patch.
 
 ## Install
 

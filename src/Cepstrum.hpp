@@ -30,6 +30,7 @@
 //   尺度与 golden 完全一致（对拍验证, docs/05）。
 // ============================================================
 #pragma once
+#include <array>
 #include <vector>
 #include <memory>
 
@@ -42,15 +43,20 @@ namespace sdrack {
 class Cepstrum
 {
 public:
-    // 1 建谱 + 1 irfft + 8 scale/lifter + 1 rfft + 9 env 提取 = 20
-    static constexpr int kNumFrameSteps = 1 + 1 + kNumCepSlices + 1 + kNumBinSlices;
+    // 默认 4096 口径: 1 建谱 + 1 irfft + 8 scale/lifter + 1 rfft + 9 env 提取 = 20
+    static constexpr int kNumFrameSteps = cepstrumStepsForFftSize(kDefaultFFTSize);
 
     Cepstrum();
     ~Cepstrum();
 
-    void prepare(double sampleRate);
+    void prepare(double sampleRate, int fftSize = kDefaultFFTSize);
+    void setFftSize(int fftSize);
+    void reset();
 
-    // harmRaw: HpssCore out1（原始量级, kNumBins）; detail: lifter 0..1
+    int fftSize() const { return fftSize_; }
+    int numBins() const { return numBins_; }
+
+    // harmRaw: HpssCore out1（原始量级, numBins 有效前缀）; detail: lifter 0..1
     void runFrameStep(int step, const float* harmRaw, float detail);
 
     const float* getEnv() const { return env_.data(); }
@@ -60,11 +66,18 @@ private:
     void scaleAndLifter(int slice);
     void extractEnv(int slice);
 
-    std::unique_ptr<rack::dsp::RealFFT> fft_;
-    std::vector<float> specIn_;    // irfft 输入 (2N, canonical 序)
-    std::vector<float> cep_;       // 倒谱 (N, 实)
-    std::vector<float> fftOut_;    // rfft 输出 (2N, canonical 序)
-    std::vector<float> env_;       // kNumBins（原始量级, 与输入同尺度）
+    std::array<std::unique_ptr<rack::dsp::RealFFT>, kNumFftSizes> fft_;
+    std::vector<float> specIn_;    // irfft 输入（最大 2N, canonical 序）
+    std::vector<float> cep_;       // 倒谱（最大 N, 实）
+    std::vector<float> fftOut_;    // rfft 输出（最大 2N, canonical 序）
+    std::vector<float> env_;       // 最大 bin 数（原始量级, 与输入同尺度）
+
+    int fftSize_    = kDefaultFFTSize;
+    int fftSizeIdx_ = fftSizeIndex(kDefaultFFTSize);
+    int numBins_    = numBinsForFftSize(kDefaultFFTSize);
+    int binSlices_  = binSlicesForFftSize(kDefaultFFTSize);
+    int cepSlices_  = cepSlicesForFftSize(kDefaultFFTSize);
+    float invN_     = 1.0f / (float)kDefaultFFTSize;
 
     float detail_ = 1.0f;
     double sampleRate_ = 44100.0;

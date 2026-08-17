@@ -33,7 +33,9 @@ namespace sdrack {
 class HpssCore
 {
 public:
-    void prepare();
+    // 预分配最大 bin 数状态; fftSize 只影响 magNormDenom_。
+    void prepare(int fftSize = kDefaultFFTSize);
+    void setFftSize(int fftSize);
     void reset();
 
     // magRaw: 未归一化原始 FFT 幅值（|X|, Max pfft~ 口径）
@@ -41,7 +43,9 @@ public:
                     float& outHarmRaw, float& outPercMask);
 
 private:
-    std::vector<float> hist_;   // size kNumBins, 归一化域 hpss_data, 初始 0
+    std::vector<float> hist_;       // 按最大 bin 数预分配; 有效前缀 = fftSize/2+1
+    int   fftSize_ = kDefaultFFTSize;
+    float magNormDenom_ = kMagNormDenom;   // fftSize * 0.5
 };
 
 } // namespace sdrack

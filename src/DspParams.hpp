@@ -27,7 +27,11 @@
 namespace sdrack {
 
 // ---------- STFT 配置 ----------
-constexpr int   kFFTSize      = 4096;
+// 默认保持 26.08.13 黄金口径: 4096 / hop 1024 / 4x overlap。
+// 2026-08-19 用户指示: 右键菜单可切换 FFT window size
+// （1024/2048/4096/8192, 均为 4x overlap, 切换即重置分析状态）。
+// 默认值 4096 下与 26.08.13 逐位一致（run_ab / run_ab_stream 回归）。
+constexpr int   kFFTSize      = 4096;                 // 默认 FFT size（黄金口径）
 constexpr int   kHop          = kFFTSize / 4;        // 1024 (4x overlap)
 constexpr int   kOverlap      = 4;
 constexpr int   kNumBins      = kFFTSize / 2 + 1;    // 2049 (单边谱, 含 Nyquist)
@@ -46,9 +50,48 @@ constexpr int   kNumCv        = 8;           // Threshold/Spacing/Focus/Gate/Blu
 // 一帧 = 若干"子任务"; process() 每次只推进一个子任务。
 // bin 切片: 每调用最多处理 kBinSlice 个 bin 的幅值/相位提取或 HPSS。
 constexpr int kBinSlice     = 256;
+constexpr int kCepSlice     = 512;
+
+// ---------- 运行时可选 FFT size（2026-08-19 用户指示）----------
+// 全部为 32 的倍数（rack::dsp::RealFFT / pffft 约束.md §4.2）且
+// 为 2 的幂 ⇒ 环形缓冲掩码 / 1/N 缩放与 4096 黄金路径同型。
+constexpr int kDefaultFFTSize = kFFTSize;
+constexpr int kMinFFTSize     = 1024;
+constexpr int kMaxFFTSize     = 8192;
+constexpr int kNumFftSizes    = 4;
+constexpr int kFftSizes[kNumFftSizes] = {1024, 2048, 4096, 8192};
+constexpr int kMaxBins        = kMaxFFTSize / 2 + 1;                 // 4097
+constexpr int kMaxBinSlices   = (kMaxBins + kBinSlice - 1) / kBinSlice;  // 17
+constexpr int kMaxCepSlices   = kMaxFFTSize / kCepSlice;             // 16
+constexpr int kMaxHop         = kMaxFFTSize / 4;                     // 2048
+constexpr int kSynthFrameSteps = 4;                                  // Synth::kNumSteps
+
+constexpr bool isValidFftSize(int n) {
+    return n == 1024 || n == 2048 || n == 4096 || n == 8192;
+}
+constexpr int fftSizeIndex(int n) {
+    return (n == 1024) ? 0 : (n == 2048) ? 1 : (n == 4096) ? 2 : 3;
+}
+constexpr int hopForFftSize(int n)              { return n / 4; }
+constexpr int numBinsForFftSize(int n)          { return n / 2 + 1; }
+constexpr int binSlicesForFftSize(int n)        { return (numBinsForFftSize(n) + kBinSlice - 1) / kBinSlice; }
+constexpr int cepSlicesForFftSize(int n)        { return n / kCepSlice; }
+constexpr int analysisStepsForFftSize(int n)    { return 2 + 2 + binSlicesForFftSize(n); }
+constexpr int cepstrumStepsForFftSize(int n)    { return 1 + 1 + cepSlicesForFftSize(n) + 1 + binSlicesForFftSize(n); }
+constexpr int frameStepsForFftSize(int n) {
+    return analysisStepsForFftSize(n)
+         + binSlicesForFftSize(n)                // HpssCore
+         + cepstrumStepsForFftSize(n)
+         + binSlicesForFftSize(n)                // MaskGen
+         + kNumBands * kSynthFrameSteps
+         + 1;                                    // pull
+}
+constexpr int scheduleLatencyForFftSize(int n) { return frameStepsForFftSize(n) - 1; }
+constexpr int kMaxFrameSteps      = frameStepsForFftSize(kMaxFFTSize);       // 132
+constexpr int kMaxScheduleLatency = scheduleLatencyForFftSize(kMaxFFTSize);  // 131
+
 constexpr int kNumBinSlices = (kNumBins + kBinSlice - 1) / kBinSlice;  // 9
 // 倒谱 lifter 切片: 每调用最多处理 kCepSlice 个倒谱点。
-constexpr int kCepSlice     = 512;
 constexpr int kNumCepSlices = kFFTSize / kCepSlice;                    // 8
 
 // ---------- 参数集（算法直接消费） ----------

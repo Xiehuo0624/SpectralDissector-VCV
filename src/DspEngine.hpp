@@ -32,6 +32,7 @@
 //   band: fifo 出样 × OutputGate（100ms 线性淡入淡出, 目标延迟 91 样本）
 // ============================================================
 #pragma once
+#include <array>
 #include <atomic>
 #include <vector>
 
@@ -47,20 +48,26 @@ namespace sdrack {
 class DspEngine
 {
 public:
-    static constexpr int kNumHpssSteps = kNumBinSlices;                 // 9
-    static constexpr int kNumMaskSteps = kNumBinSlices;                 // 9
-    static constexpr int kNumSynthSteps = kNumBands * Synth::kNumSteps; // 40
-    static constexpr int kNumFrameSteps = Analysis::kNumFrameSteps      // 13
-                                        + kNumHpssSteps                 // 9
-                                        + Cepstrum::kNumFrameSteps      // 20
-                                        + kNumMaskSteps                 // 9
-                                        + kNumSynthSteps                // 40
-                                        + 1;                            // 1  pull = 92
-    // D5-A 确定性调度延迟 = 帧完成于触发后第 (kNumFrameSteps-1) 个样本
-    // （docs/06 §1.2）; 模块输出流 = golden 输出流整体延迟该值。
-    static constexpr int kScheduleLatency = kNumFrameSteps - 1;         // 91
+    // 默认 4096 口径的调度常量（供既有测试/文档使用; 当前实际值随
+    // 右键选择的 FFT size 变化, 见 fftSize()/numBins() 等）。
+    static constexpr int kNumHpssSteps = binSlicesForFftSize(kDefaultFFTSize);  // 9
+    static constexpr int kNumMaskSteps = binSlicesForFftSize(kDefaultFFTSize);  // 9
+    static constexpr int kNumSynthSteps = kNumBands * Synth::kNumSteps;         // 40
+    static constexpr int kNumFrameSteps = frameStepsForFftSize(kDefaultFFTSize); // 92
+    static constexpr int kScheduleLatency = scheduleLatencyForFftSize(kDefaultFFTSize); // 91
 
     void prepare(double sampleRate);
+
+    // 右键菜单/JSON 在 UI 线程请求切换。音频线程下一次 process() 检测到
+    // 变化后执行无分配状态重置（全部 pffft plan 与缓冲已在 prepare 预分配,
+    // 约束.md §4.5）。无效值忽略。
+    void requestFftSize(int fftSize);
+    int fftSize() const { return currentFftSize_.load(std::memory_order_acquire); }
+    int hop()     const { return hopForFftSize(fftSize()); }
+    int numBins() const { return numBinsForFftSize(fftSize()); }
+    int frameSteps()   const { return frameStepsForFftSize(fftSize()); }
+    int scheduleLatency() const { return scheduleLatencyForFftSize(fftSize()); }
+
     bool isPrepared() const { return prepared_; }
     double sampleRate() const { return sampleRate_; }
 
@@ -93,11 +100,14 @@ public:
     //   int front = spectrumFront();                 // acquire 读一次
     //   const float* data = spectrumData(front, b);  // 此后读该帧 10 条 band
     // 音频线程只写"另一"缓冲, 永不覆盖已发布帧 ⇒ 免锁且读数一致。
-    // 显示层不进音频路径（约束 D11: 分析仪为显示层）。
+    // 显示层不进音频路径（约束 D11: 分析仪为显示层）。切换 FFT size
+    // 时重置谱缓冲并发布索引 0。
     int spectrumFront() const { return specFront_.load(std::memory_order_acquire); }
     const float* spectrumData(int buf, int band) const { return specDisp_[buf][band]; }
 
 private:
+    void applyPendingFftSize();
+    void configureFftSize(int fftSize);   // 设当前配置 + 无分配重置状态
     void runFrameStep(int step);
     void pullFrameOutputs();
 
@@ -108,6 +118,7 @@ private:
         void resize(int n) { buf.assign(n, 0.0f); writeIdx = readIdx = count = 0; }
         void push(const float* src, int n);
         float pop();
+        void reset() { writeIdx = readIdx = count = 0; }
     };
 
     Analysis  analysis_;
@@ -118,33 +129,43 @@ private:
     OutputGate gates_[kNumBands];        // 100ms 线性淡入淡出（P2.9）
     DspParams p_;
 
-    std::vector<float> harmRaw_;       // HpssCore out1 (每帧 kNumBins)
-    std::vector<float> percMask_;      // HpssCore out2 (每帧 kNumBins)
-    std::vector<float> masks_[9];      // MaskGen out1..9 (每帧 kNumBins)
+    // 帧中间缓冲（按最大 FFT size 预分配; 有效前缀 = 当前 fftSize_）
+    std::vector<float> harmRaw_;       // HpssCore out1
+    std::vector<float> percMask_;      // HpssCore out2
+    std::vector<float> masks_[9];      // MaskGen out1..9
 
     // P5.2 (D11): 分析仪显示缓冲 masks[b][k]×|X[k]|（b=0..9 → B1..B10,
-    // 双缓冲 2×10×2049）。specBack_ 为音频线程私有的写索引,
+    // 双缓冲 2×10×maxBins）。specBack_ 为音频线程私有的写索引,
     // specFront_ 为跨线程发布索引。
-    float specDisp_[2][kNumBands][kNumBins] = {};
+    float specDisp_[2][kNumBands][kMaxBins] = {};
     std::atomic<int> specFront_{0};
     int specBack_ = 1;
 
     Fifo fifoL_[kNumBands], fifoR_[kNumBands];   // 2N 环形 fifo（对齐 golden）
-    std::vector<float> tmpL_, tmpR_;             // pull 暂存 (kHop)
+    std::vector<float> tmpL_, tmpR_;             // pull 暂存（最大 hop）
 
-    // 参数时间线与内容时间线统一延迟 kScheduleLatency（docs/06 §6）:
-    // OutputGate 增益与 dry 增益在应用前先延迟 91 样本（增益值延迟,
-    // 非目标延迟 —— 上电淡入从恒态起始, 目标延迟不影响斜坡相位）,
-    // 使模块输出流 = golden 输出流的整体 91 样本延迟（含淡入淡出段）。
-    float gateGainDelay_[kNumBands][kScheduleLatency];
+    // 参数时间线与内容时间线统一延迟 latency_（docs/06 §6）:
+    // OutputGate 增益与 dry 增益在应用前先延迟 latency_ 样本。数组按
+    // 最大 size（8192 → latency 131）预分配, 有效长度随当前 size 变化。
+    std::array<std::array<float, kMaxScheduleLatency>, kNumBands> gateGainDelay_{};
     int   gateGainDelayIdx_ = 0;
-    float dryGainDelay_[kScheduleLatency];
+    std::array<float, kMaxScheduleLatency> dryGainDelay_{};
     int   dryGainDelayIdx_ = 0;
 
-    // Dry 通路: golden kDryDelay=4096（对齐其湿路 4095）; 插件湿路
-    // = golden+91 ⇒ dry 延迟 4096+91 保持与湿路相同的 1 样本相对关系
+    // Dry 通路: golden kDryDelay=N（对齐其湿路 N−1）; 插件湿路
+    // = golden+latency ⇒ dry 延迟 N+latency 保持与湿路相同的 1 样本相对关系
     std::vector<float> dryDelayL_, dryDelayR_;
     int dryDelayIdx_ = 0;
+
+    // 当前 FFT size 配置（音频线程专用; UI 只读原子 currentFftSize_）。
+    int fftSize_   = kDefaultFFTSize;
+    int numBins_   = kNumBins;
+    int binSlices_ = kNumBinSlices;
+    int hop_       = kHop;
+    int frameSteps_ = kNumFrameSteps;
+    int latency_    = kScheduleLatency;
+    std::atomic<int> pendingFftSize_{kDefaultFFTSize};
+    std::atomic<int> currentFftSize_{kDefaultFFTSize};
 
     int  jobStep_    = -1;   // -1 = 无帧任务在途
     int  frameCount_ = 0;

@@ -12,8 +12,8 @@
 // GNU General Public License for more details.
 #include "Analysis.hpp"
 
-#include <cmath>
 #include <algorithm>
+#include <cmath>
 
 #include <dsp/fft.hpp>   // rack::dsp::RealFFT (pffft, 约束.md §4.2)
 
@@ -33,23 +33,56 @@ Analysis::Analysis() = default;
 
 Analysis::~Analysis() = default;
 
-void Analysis::prepare(double sampleRate)
+void Analysis::prepare(double sampleRate, int fftSize)
 {
     sampleRate_ = sampleRate;
-    fft_.reset(new rack::dsp::RealFFT(kFFTSize));
-    window_ = makeHannWindow(kFFTSize);
-    bufL_.assign(kFFTSize, 0.0f);
-    bufR_.assign(kFFTSize, 0.0f);
-    fftInL_.assign(kFFTSize, 0.0f);
-    fftInR_.assign(kFFTSize, 0.0f);
-    fftOutL_.assign(kFFTSize * 2, 0.0f);
-    fftOutR_.assign(kFFTSize * 2, 0.0f);
-    magL_.assign(kNumBins, 0.0f);
-    magR_.assign(kNumBins, 0.0f);
-    phaseL_.assign(kNumBins, 0.0f);
-    phaseR_.assign(kNumBins, 0.0f);
+    if (!isValidFftSize(fftSize))
+        fftSize = kDefaultFFTSize;
+    // 预分配全部可选尺寸的 pffft plan 与 Hann 窗; 缓冲按最大 N 一次性分配。
+    // 此后 setFftSize()/reset() 只做索引切换与 std::fill, 无堆分配。
+    for (int i = 0; i < kNumFftSizes; ++i) {
+        fft_[i].reset(new rack::dsp::RealFFT(kFftSizes[i]));
+        window_[i] = makeHannWindow(kFftSizes[i]);
+    }
+    bufL_.assign(kMaxFFTSize, 0.0f);
+    bufR_.assign(kMaxFFTSize, 0.0f);
+    fftInL_.assign(kMaxFFTSize, 0.0f);
+    fftInR_.assign(kMaxFFTSize, 0.0f);
+    fftOutL_.assign(kMaxFFTSize * 2, 0.0f);
+    fftOutR_.assign(kMaxFFTSize * 2, 0.0f);
+    magL_.assign(kMaxBins, 0.0f);
+    magR_.assign(kMaxBins, 0.0f);
+    phaseL_.assign(kMaxBins, 0.0f);
+    phaseR_.assign(kMaxBins, 0.0f);
+    setFftSize(fftSize);
+    reset();
+}
+
+void Analysis::setFftSize(int fftSize)
+{
+    if (!isValidFftSize(fftSize))
+        fftSize = kDefaultFFTSize;
+    fftSize_    = fftSize;
+    fftSizeIdx_ = fftSizeIndex(fftSize);
+    numBins_    = numBinsForFftSize(fftSize);
+    binSlices_  = binSlicesForFftSize(fftSize);
+    hop_        = hopForFftSize(fftSize);
+}
+
+void Analysis::reset()
+{
+    std::fill(bufL_.begin(), bufL_.end(), 0.0f);
+    std::fill(bufR_.begin(), bufR_.end(), 0.0f);
+    std::fill(fftInL_.begin(), fftInL_.end(), 0.0f);
+    std::fill(fftInR_.begin(), fftInR_.end(), 0.0f);
+    std::fill(fftOutL_.begin(), fftOutL_.end(), 0.0f);
+    std::fill(fftOutR_.begin(), fftOutR_.end(), 0.0f);
+    std::fill(magL_.begin(), magL_.end(), 0.0f);
+    std::fill(magR_.begin(), magR_.end(), 0.0f);
+    std::fill(phaseL_.begin(), phaseL_.end(), 0.0f);
+    std::fill(phaseR_.begin(), phaseR_.end(), 0.0f);
     writePos_ = 0;
-    samplesUntilFrame_ = kHop;
+    samplesUntilFrame_ = hop_;
     frameStart_ = 0;
 }
 
@@ -57,9 +90,9 @@ bool Analysis::pushSample(float inL, float inR)
 {
     bufL_[writePos_] = inL;
     bufR_[writePos_] = inR;
-    writePos_ = (writePos_ + 1) & (kFFTSize - 1);
+    writePos_ = (writePos_ + 1) & (fftSize_ - 1);
     if (--samplesUntilFrame_ <= 0) {
-        samplesUntilFrame_ = kHop;
+        samplesUntilFrame_ = hop_;
         frameStart_ = writePos_;   // == golden: int start = writePos
         return true;
     }
@@ -68,10 +101,11 @@ bool Analysis::pushSample(float inL, float inR)
 
 void Analysis::windowCopy(const std::vector<float>& buf, std::vector<float>& dst)
 {
-    const int mask = kFFTSize - 1;
+    const int mask = fftSize_ - 1;
     const int start = frameStart_;
-    for (int n = 0; n < kFFTSize; ++n)
-        dst[n] = buf[(start + n) & mask] * window_[n];
+    const std::vector<float>& win = window_[fftSizeIdx_];
+    for (int n = 0; n < fftSize_; ++n)
+        dst[n] = buf[(start + n) & mask] * win[n];
 }
 
 void Analysis::extractBin(int k)
@@ -83,7 +117,7 @@ void Analysis::extractBin(int k)
         reL = fftOutL_[0];  imL = 0.0f;
         reR = fftOutR_[0];  imR = 0.0f;
     }
-    else if (k == kNumBins - 1) {
+    else if (k == numBins_ - 1) {
         reL = fftOutL_[1];  imL = 0.0f;
         reR = fftOutR_[1];  imR = 0.0f;
     }
@@ -100,23 +134,24 @@ void Analysis::extractBin(int k)
 
 void Analysis::runFrameStep(int step)
 {
+    auto& fft = *fft_[fftSizeIdx_];
     switch (step) {
         case 0:  windowCopy(bufL_, fftInL_); break;
         case 1:  windowCopy(bufR_, fftInR_); break;
-        case 2:  fft_->rfft(fftInL_.data(), fftOutL_.data()); break;
-        case 3:  fft_->rfft(fftInR_.data(), fftOutR_.data()); break;
+        case 2:  fft.rfft(fftInL_.data(), fftOutL_.data()); break;
+        case 3:  fft.rfft(fftInR_.data(), fftOutR_.data()); break;
         default: {
             int s = step - 4;
             int k0 = s * kBinSlice;
-            int k1 = std::min(k0 + kBinSlice, kNumBins);
+            int k1 = std::min(k0 + kBinSlice, numBins_);
             for (int k = k0; k < k1; ++k)
                 extractBin(k);
-            // 最后一个切片覆盖 k=2048: Nyquist bin 置零 (Max pfft~ 行为)
-            if (s == kNumBinSlices - 1) {
-                magL_[kNumBins - 1]   = 0.0f;
-                magR_[kNumBins - 1]   = 0.0f;
-                phaseL_[kNumBins - 1] = 0.0f;
-                phaseR_[kNumBins - 1] = 0.0f;
+            // 最后一个切片覆盖 Nyquist bin: 置零 (Max pfft~ 行为)
+            if (s == binSlices_ - 1) {
+                magL_[numBins_ - 1]   = 0.0f;
+                magR_[numBins_ - 1]   = 0.0f;
+                phaseL_[numBins_ - 1] = 0.0f;
+                phaseR_[numBins_ - 1] = 0.0f;
             }
         } break;
     }

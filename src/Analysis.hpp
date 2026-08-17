@@ -34,6 +34,7 @@
 //   pffft 无法中途挂起, 故"一段 FFT 子任务"的最小粒度 = 一次 rfft）。
 // ============================================================
 #pragma once
+#include <array>
 #include <vector>
 #include <memory>
 
@@ -46,18 +47,28 @@ namespace sdrack {
 class Analysis
 {
 public:
-    // 2 加窗拷贝 + 2 rfft + 9 个 bin 切片 = 13 个子任务
-    static constexpr int kNumFrameSteps = 2 + 2 + kNumBinSlices;
+    // 默认 4096 口径: 2 加窗拷贝 + 2 rfft + 9 个 bin 切片 = 13 个子任务
+    static constexpr int kNumFrameSteps = analysisStepsForFftSize(kDefaultFFTSize);
 
     Analysis();
     ~Analysis();
 
-    void prepare(double sampleRate);
+    // 预分配全部可选 FFT size 的窗/pffft plan + 最大尺寸缓冲,
+    // 并把当前 size 设为 fftSize（音频线程切换时不再分配, 约束.md §4.5）。
+    void prepare(double sampleRate, int fftSize = kDefaultFFTSize);
+
+    // 仅改当前 size 索引（不分配/不重置）; 由 DspEngine 在 prepare 或
+    // 音频线程切换时调用, 随后调用 reset() 清状态。
+    void setFftSize(int fftSize);
+    void reset();
+
+    int fftSize() const { return fftSize_; }
+    int numBins() const { return numBins_; }
 
     // 逐样本推入。返回 true = 新一帧已触发（帧任务从 step 0 开始）。
     bool pushSample(float inL, float inR);
 
-    // 推进一帧任务的一个子任务 (0..kNumFrameSteps-1)。
+    // 推进一帧任务的一个子任务 (0..analysisStepsForFftSize(fftSize_)-1)。
     // 帧触发时 snapshot 的环形缓冲起点与 golden processFrame 的
     // `int start = writePos` 完全一致。
     void runFrameStep(int step);
@@ -74,12 +85,18 @@ private:
     void windowCopy(const std::vector<float>& buf, std::vector<float>& dst);
     void extractBin(int k);
 
-    std::unique_ptr<rack::dsp::RealFFT> fft_;
-    std::vector<float> window_;         // Hann, size N
-    std::vector<float> bufL_, bufR_;    // 输入环形缓冲 (size N)
-    std::vector<float> fftInL_, fftInR_;    // rfft 实输入 (size N)
+    std::array<std::unique_ptr<rack::dsp::RealFFT>, kNumFftSizes> fft_;
+    std::array<std::vector<float>, kNumFftSizes> window_;  // 每 size 一套 Hann
+    std::vector<float> bufL_, bufR_;    // 输入环形缓冲（按最大 N 预分配）
+    std::vector<float> fftInL_, fftInR_;    // rfft 实输入
     std::vector<float> fftOutL_, fftOutR_;  // rfft 输出 (2N, canonical 序)
-    std::vector<float> magL_, magR_, phaseL_, phaseR_;   // size kNumBins
+    std::vector<float> magL_, magR_, phaseL_, phaseR_;   // 按最大 bin 数预分配
+
+    int fftSize_    = kDefaultFFTSize;
+    int fftSizeIdx_ = fftSizeIndex(kDefaultFFTSize);
+    int numBins_    = numBinsForFftSize(kDefaultFFTSize);
+    int binSlices_  = binSlicesForFftSize(kDefaultFFTSize);
+    int hop_        = hopForFftSize(kDefaultFFTSize);
 
     int writePos_ = 0;
     int samplesUntilFrame_ = kHop;

@@ -17,9 +17,19 @@
 
 namespace sdrack {
 
-void HpssCore::prepare()
+void HpssCore::prepare(int fftSize)
 {
-    hist_.assign(kNumBins, 0.0f);
+    hist_.assign(kMaxBins, 0.0f);
+    setFftSize(fftSize);
+    reset();
+}
+
+void HpssCore::setFftSize(int fftSize)
+{
+    if (!isValidFftSize(fftSize))
+        fftSize = kDefaultFFTSize;
+    fftSize_ = fftSize;
+    magNormDenom_ = 0.5f * (float)fftSize_;
 }
 
 void HpssCore::reset()
@@ -33,7 +43,7 @@ void HpssCore::processBin(float magRaw, int binIdx, const DspParams& p,
     float& hist = hist_[binIdx];
 
     // 幅值归一化: mag_main = mag_raw / (fft_size * 0.5)
-    float mag_main = magRaw / kMagNormDenom;
+    float mag_main = magRaw / magNormDenom_;
 
     // 零延迟内置 HPSS: mix(hist, mag, coeff) = hist*(1-c) + mag*c
     float mag_harm_norm = hist * (1.0f - p.blur) + mag_main * p.blur;
@@ -42,7 +52,7 @@ void HpssCore::processBin(float magRaw, int binIdx, const DspParams& p,
     float mag_perc_norm = std::max(0.0f, mag_main - mag_harm_norm);
 
     // 输出 1: 恢复原始量级的 Harmonic 幅值（供 Cepstrum/MaskGen）
-    outHarmRaw = mag_harm_norm * kMagNormDenom;
+    outHarmRaw = mag_harm_norm * magNormDenom_;
 
     // 输出 2: 打击乐掩膜（Band 10）
     outPercMask = std::pow(mag_perc_norm / (mag_main + 0.00001f), p.perc);

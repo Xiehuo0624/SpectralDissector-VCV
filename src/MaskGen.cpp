@@ -29,10 +29,20 @@ namespace {
     }
 }
 
-void MaskGen::prepare(double sampleRate)
+void MaskGen::prepare(double sampleRate, int fftSize)
 {
     sampleRate_ = sampleRate;
-    states_.assign(kNumBins, State{});
+    states_.assign(kMaxBins, State{});
+    setFftSize(fftSize);
+    reset();
+}
+
+void MaskGen::setFftSize(int fftSize)
+{
+    if (!isValidFftSize(fftSize))
+        fftSize = kDefaultFFTSize;
+    fftSize_ = fftSize;
+    magNormDenom_ = 0.5f * (float)fftSize_;
 }
 
 void MaskGen::reset()
@@ -46,8 +56,8 @@ void MaskGen::processBin(float magHarmRaw, float envRaw, int binIdx,
     State& st = states_[binIdx];
 
     // 幅值归一化
-    float mag_harm = magHarmRaw / kMagNormDenom;
-    float env_main = envRaw / kMagNormDenom;
+    float mag_harm = magHarmRaw / magNormDenom_;
+    float env_main = envRaw / magNormDenom_;
 
     // 直接使用倒谱包络作为背景底噪的基准线
     float norm_mag = mag_harm / (std::max(env_main, 0.00001f) + 0.00001f);
@@ -64,7 +74,7 @@ void MaskGen::processBin(float magHarmRaw, float envRaw, int binIdx,
     float mag_harmonic = mag_harm * denoise_gate_smooth;
 
     // 全局倾斜补偿
-    float f_i = std::max((float)binIdx * (float)(sampleRate_ / (double)kFFTSize), 1.0f);
+    float f_i = std::max((float)binIdx * (float)(sampleRate_ / (double)fftSize_), 1.0f);
     float tilt_comp_db = p.tilt * std::log2(f_i / 1000.0f);
 
     // ========================================================
