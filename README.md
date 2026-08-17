@@ -26,7 +26,7 @@ A real-time 10-band spectral dissector: 4096-point STFT (Hann, hop 1024, 4x over
 ## Build
 
 ```bash
-cd plugin
+# 本仓库源码位于仓库根目录；把 Rack SDK 放到 ../sdk（或自行指定 RACK_DIR）
 PATH=/opt/homebrew/bin:$PATH make RACK_DIR=../sdk
 PATH=/opt/homebrew/bin:$PATH make RACK_DIR=../sdk dist
 ```
