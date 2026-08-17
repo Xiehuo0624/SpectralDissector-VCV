@@ -109,12 +109,12 @@ addInput(createInputCentered<sdpanel::ThemedPort>(mm2px(Vec(184.5f, 48.0f)), mod
 	addParam(w);
 }
 {
-	auto* w = createParam<sdpanel::ThemedKnob>(mm2px(Vec(210.0f, 32.0f)), module, SpectralDissectorModule::PARAM_CVATT_TILT);
+	auto* w = createParam<sdpanel::ThemedKnob>(mm2px(Vec(205.5f, 32.0f)), module, SpectralDissectorModule::PARAM_CVATT_TILT);
 	w->box.size = mm2px(Vec(7.5f, 7.5f));
 	w->box.pos = w->box.pos.minus(w->box.size.div(2.0f));
 	addParam(w);
 }
-addInput(createInputCentered<sdpanel::ThemedPort>(mm2px(Vec(210.0f, 48.0f)), module, SpectralDissectorModule::INPUT_CV_TILT));
+addInput(createInputCentered<sdpanel::ThemedPort>(mm2px(Vec(205.5f, 48.0f)), module, SpectralDissectorModule::INPUT_CV_TILT));
 addOutput(createOutputCentered<sdpanel::ThemedPort>(mm2px(Vec(23.0f, 118.5f)), module, SpectralDissectorModule::OUTPUT_MIX));
 addOutput(createOutputCentered<sdpanel::ThemedPort>(mm2px(Vec(35.5f, 118.5f)), module, SpectralDissectorModule::OUTPUT_DRY));
 {
@@ -327,7 +327,7 @@ addOutput(createOutputCentered<sdpanel::ThemedPort>(mm2px(Vec(315.0f, 118.5f)), 
 	lw->center = false;
 	lw->dim = true;
 	lw->module = module;
-	lw->box.pos = mm2px(Vec(67.7f, 4.297f));
+	lw->box.pos = mm2px(Vec(64.0f, 4.297f));
 	lw->box.size = mm2px(Vec(15.213f, 5.08f));
 	addChild(lw);
 }
