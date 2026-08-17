@@ -1,0 +1,685 @@
+{
+  "format": "sd-layout-1",
+  "meta": {
+    "name": "Spectral Dissector",
+    "default": true
+  },
+  "panel": {
+    "widthHP": 48,
+    "widthMm": 243.8,
+    "heightPx": 380,
+    "heightMm": 128.7,
+    "pxPerMm": 2.952755905511811
+  },
+  "widgets": [
+    {
+      "type": "label",
+      "text": "SPECTRAL DISSECTOR",
+      "x": 5,
+      "y": 8,
+      "size": 10,
+      "bold": true
+    },
+    {
+      "type": "label",
+      "text": "26.08.13 port · Xiehuo",
+      "x": 5,
+      "y": 14,
+      "size": 6.5
+    },
+    {
+      "type": "label",
+      "text": "IN L/R",
+      "x": 9.5,
+      "y": 26.5,
+      "size": 6.5
+    },
+    {
+      "type": "input",
+      "bind": "INPUT_AUDIO",
+      "x": 13.5,
+      "y": 20
+    },
+    {
+      "type": "analyzer",
+      "x": 4,
+      "y": 30,
+      "w": 54,
+      "h": 94
+    },
+    {
+      "type": "label",
+      "text": "CONTROLS",
+      "x": 62,
+      "y": 6.5,
+      "size": 7
+    },
+    {
+      "type": "label",
+      "text": "SPACING",
+      "x": 63,
+      "y": 6.5,
+      "size": 6,
+      "anchor": "middle"
+    },
+    {
+      "type": "knob",
+      "bind": "PARAM_SPACING",
+      "x": 63,
+      "y": 11,
+      "value": true
+    },
+    {
+      "type": "attenuator",
+      "bind": "PARAM_CVATT_SPACING",
+      "x": 63,
+      "y": 25,
+      "value": true
+    },
+    {
+      "type": "input",
+      "bind": "INPUT_CV_SPACING",
+      "x": 63,
+      "y": 37
+    },
+    {
+      "type": "label",
+      "text": "GATE",
+      "x": 78,
+      "y": 6.5,
+      "size": 6,
+      "anchor": "middle"
+    },
+    {
+      "type": "knob",
+      "bind": "PARAM_GATE",
+      "x": 78,
+      "y": 11,
+      "value": true
+    },
+    {
+      "type": "attenuator",
+      "bind": "PARAM_CVATT_GATE",
+      "x": 78,
+      "y": 25,
+      "value": true
+    },
+    {
+      "type": "input",
+      "bind": "INPUT_CV_GATE",
+      "x": 78,
+      "y": 37
+    },
+    {
+      "type": "label",
+      "text": "BLUR",
+      "x": 93,
+      "y": 6.5,
+      "size": 6,
+      "anchor": "middle"
+    },
+    {
+      "type": "knob",
+      "bind": "PARAM_BLUR",
+      "x": 93,
+      "y": 11,
+      "value": true
+    },
+    {
+      "type": "attenuator",
+      "bind": "PARAM_CVATT_BLUR",
+      "x": 93,
+      "y": 25,
+      "value": true
+    },
+    {
+      "type": "input",
+      "bind": "INPUT_CV_BLUR",
+      "x": 93,
+      "y": 37
+    },
+    {
+      "type": "label",
+      "text": "PERC",
+      "x": 108,
+      "y": 6.5,
+      "size": 6,
+      "anchor": "middle"
+    },
+    {
+      "type": "knob",
+      "bind": "PARAM_PERC",
+      "x": 108,
+      "y": 11,
+      "value": true
+    },
+    {
+      "type": "attenuator",
+      "bind": "PARAM_CVATT_PERC",
+      "x": 108,
+      "y": 25,
+      "value": true
+    },
+    {
+      "type": "input",
+      "bind": "INPUT_CV_PERC",
+      "x": 108,
+      "y": 37
+    },
+    {
+      "type": "label",
+      "text": "DETAIL",
+      "x": 123,
+      "y": 6.5,
+      "size": 6,
+      "anchor": "middle"
+    },
+    {
+      "type": "knob",
+      "bind": "PARAM_DETAIL",
+      "x": 123,
+      "y": 11,
+      "value": true
+    },
+    {
+      "type": "attenuator",
+      "bind": "PARAM_CVATT_DETAIL",
+      "x": 123,
+      "y": 25,
+      "value": true
+    },
+    {
+      "type": "input",
+      "bind": "INPUT_CV_DETAIL",
+      "x": 123,
+      "y": 37
+    },
+    {
+      "type": "label",
+      "text": "RISE",
+      "x": 139,
+      "y": 6.5,
+      "size": 6,
+      "anchor": "middle"
+    },
+    {
+      "type": "knob",
+      "bind": "PARAM_RISE_MS",
+      "x": 139,
+      "y": 11,
+      "value": true
+    },
+    {
+      "type": "label",
+      "text": "FALL",
+      "x": 154,
+      "y": 6.5,
+      "size": 6,
+      "anchor": "middle"
+    },
+    {
+      "type": "knob",
+      "bind": "PARAM_FALL_MS",
+      "x": 154,
+      "y": 11,
+      "value": true
+    },
+    {
+      "type": "label",
+      "text": "THRESH",
+      "x": 171,
+      "y": 6.5,
+      "size": 6,
+      "anchor": "middle"
+    },
+    {
+      "type": "faderV",
+      "bind": "PARAM_THRESHOLD",
+      "x": 171,
+      "y": 25,
+      "h": 32
+    },
+    {
+      "type": "attenuator",
+      "bind": "PARAM_CVATT_THRESHOLD",
+      "x": 182,
+      "y": 17,
+      "value": true
+    },
+    {
+      "type": "input",
+      "bind": "INPUT_CV_THRESHOLD",
+      "x": 182,
+      "y": 30.5
+    },
+    {
+      "type": "label",
+      "text": "FOCUS",
+      "x": 195,
+      "y": 6.5,
+      "size": 6,
+      "anchor": "middle"
+    },
+    {
+      "type": "faderV",
+      "bind": "PARAM_FOCUS",
+      "x": 195,
+      "y": 25,
+      "h": 32
+    },
+    {
+      "type": "attenuator",
+      "bind": "PARAM_CVATT_FOCUS",
+      "x": 206,
+      "y": 17,
+      "value": true
+    },
+    {
+      "type": "input",
+      "bind": "INPUT_CV_FOCUS",
+      "x": 206,
+      "y": 30.5
+    },
+    {
+      "type": "label",
+      "text": "TILT",
+      "x": 219,
+      "y": 6.5,
+      "size": 6,
+      "anchor": "middle"
+    },
+    {
+      "type": "faderV",
+      "bind": "PARAM_TILT",
+      "x": 219,
+      "y": 25,
+      "h": 32
+    },
+    {
+      "type": "attenuator",
+      "bind": "PARAM_CVATT_TILT",
+      "x": 219,
+      "y": 45.5,
+      "value": true
+    },
+    {
+      "type": "input",
+      "bind": "INPUT_CV_TILT",
+      "x": 219,
+      "y": 52.5
+    },
+    {
+      "type": "label",
+      "text": "MIX (ALL)",
+      "x": 232,
+      "y": 27.5,
+      "size": 5.5,
+      "anchor": "middle"
+    },
+    {
+      "type": "output",
+      "bind": "OUTPUT_MIX",
+      "x": 232,
+      "y": 20
+    },
+    {
+      "type": "label",
+      "text": "BAND STRIPS",
+      "x": 58,
+      "y": 56.5,
+      "size": 7
+    },
+    {
+      "type": "label",
+      "text": "DRY",
+      "x": 58.0,
+      "y": 62.5,
+      "size": 6,
+      "anchor": "middle"
+    },
+    {
+      "type": "switch",
+      "bind": "PARAM_DRY",
+      "x": 58.0,
+      "y": 72
+    },
+    {
+      "type": "output",
+      "bind": "OUTPUT_DRY",
+      "x": 58.0,
+      "y": 117.5
+    },
+    {
+      "type": "attenuator",
+      "bind": "PARAM_OFF1",
+      "x": 76.0,
+      "y": 68.5
+    },
+    {
+      "type": "faderV",
+      "bind": "PARAM_GAIN1",
+      "x": 76.0,
+      "y": 88,
+      "h": 29
+    },
+    {
+      "type": "light",
+      "bind": "LIGHT_BAND1",
+      "x": 81.5,
+      "y": 106.5,
+      "color": "#d97f14",
+      "band": 0
+    },
+    {
+      "type": "output",
+      "bind": "OUTPUT_B1",
+      "x": 76.0,
+      "y": 117.5
+    },
+    {
+      "type": "label",
+      "text": "Band 1",
+      "x": 76.0,
+      "y": 127.2,
+      "size": 5.5,
+      "anchor": "middle"
+    },
+    {
+      "type": "attenuator",
+      "bind": "PARAM_OFF2",
+      "x": 94.0,
+      "y": 68.5
+    },
+    {
+      "type": "faderV",
+      "bind": "PARAM_GAIN2",
+      "x": 94.0,
+      "y": 88,
+      "h": 29
+    },
+    {
+      "type": "light",
+      "bind": "LIGHT_BAND2",
+      "x": 99.5,
+      "y": 106.5,
+      "color": "#d9d914",
+      "band": 1
+    },
+    {
+      "type": "output",
+      "bind": "OUTPUT_B2",
+      "x": 94.0,
+      "y": 117.5
+    },
+    {
+      "type": "label",
+      "text": "Band 2",
+      "x": 94.0,
+      "y": 127.2,
+      "size": 5.5,
+      "anchor": "middle"
+    },
+    {
+      "type": "attenuator",
+      "bind": "PARAM_OFF3",
+      "x": 112.0,
+      "y": 68.5
+    },
+    {
+      "type": "faderV",
+      "bind": "PARAM_GAIN3",
+      "x": 112.0,
+      "y": 88,
+      "h": 29
+    },
+    {
+      "type": "light",
+      "bind": "LIGHT_BAND3",
+      "x": 117.5,
+      "y": 106.5,
+      "color": "#4ad914",
+      "band": 2
+    },
+    {
+      "type": "output",
+      "bind": "OUTPUT_B3",
+      "x": 112.0,
+      "y": 117.5
+    },
+    {
+      "type": "label",
+      "text": "Band 3",
+      "x": 112.0,
+      "y": 127.2,
+      "size": 5.5,
+      "anchor": "middle"
+    },
+    {
+      "type": "attenuator",
+      "bind": "PARAM_OFF4",
+      "x": 129.9,
+      "y": 68.5
+    },
+    {
+      "type": "faderV",
+      "bind": "PARAM_GAIN4",
+      "x": 129.9,
+      "y": 88,
+      "h": 29
+    },
+    {
+      "type": "light",
+      "bind": "LIGHT_BAND4",
+      "x": 135.4,
+      "y": 106.5,
+      "color": "#14d9b5",
+      "band": 3
+    },
+    {
+      "type": "output",
+      "bind": "OUTPUT_B4",
+      "x": 129.9,
+      "y": 117.5
+    },
+    {
+      "type": "label",
+      "text": "Band 4",
+      "x": 129.9,
+      "y": 127.2,
+      "size": 5.5,
+      "anchor": "middle"
+    },
+    {
+      "type": "attenuator",
+      "bind": "PARAM_OFF5",
+      "x": 147.9,
+      "y": 68.5
+    },
+    {
+      "type": "faderV",
+      "bind": "PARAM_GAIN5",
+      "x": 147.9,
+      "y": 88,
+      "h": 29
+    },
+    {
+      "type": "light",
+      "bind": "LIGHT_BAND5",
+      "x": 153.4,
+      "y": 106.5,
+      "color": "#14a3d9",
+      "band": 4
+    },
+    {
+      "type": "output",
+      "bind": "OUTPUT_B5",
+      "x": 147.9,
+      "y": 117.5
+    },
+    {
+      "type": "label",
+      "text": "Band 5",
+      "x": 147.9,
+      "y": 127.2,
+      "size": 5.5,
+      "anchor": "middle"
+    },
+    {
+      "type": "attenuator",
+      "bind": "PARAM_OFF6",
+      "x": 165.9,
+      "y": 68.5
+    },
+    {
+      "type": "faderV",
+      "bind": "PARAM_GAIN6",
+      "x": 165.9,
+      "y": 88,
+      "h": 29
+    },
+    {
+      "type": "light",
+      "bind": "LIGHT_BAND6",
+      "x": 171.4,
+      "y": 106.5,
+      "color": "#144ad9",
+      "band": 5
+    },
+    {
+      "type": "output",
+      "bind": "OUTPUT_B6",
+      "x": 165.9,
+      "y": 117.5
+    },
+    {
+      "type": "label",
+      "text": "Band 6",
+      "x": 165.9,
+      "y": 127.2,
+      "size": 5.5,
+      "anchor": "middle"
+    },
+    {
+      "type": "attenuator",
+      "bind": "PARAM_OFF7",
+      "x": 183.9,
+      "y": 68.5
+    },
+    {
+      "type": "faderV",
+      "bind": "PARAM_GAIN7",
+      "x": 183.9,
+      "y": 88,
+      "h": 29
+    },
+    {
+      "type": "light",
+      "bind": "LIGHT_BAND7",
+      "x": 189.4,
+      "y": 106.5,
+      "color": "#6e14d9",
+      "band": 6
+    },
+    {
+      "type": "output",
+      "bind": "OUTPUT_B7",
+      "x": 183.9,
+      "y": 117.5
+    },
+    {
+      "type": "label",
+      "text": "Band 7",
+      "x": 183.9,
+      "y": 127.2,
+      "size": 5.5,
+      "anchor": "middle"
+    },
+    {
+      "type": "faderV",
+      "bind": "PARAM_GAIN8",
+      "x": 201.9,
+      "y": 88,
+      "h": 29
+    },
+    {
+      "type": "light",
+      "bind": "LIGHT_BAND8",
+      "x": 207.4,
+      "y": 106.5,
+      "color": "#d914d9",
+      "band": 7
+    },
+    {
+      "type": "output",
+      "bind": "OUTPUT_B8",
+      "x": 201.9,
+      "y": 117.5
+    },
+    {
+      "type": "label",
+      "text": "Band 8",
+      "x": 201.9,
+      "y": 127.2,
+      "size": 5.5,
+      "anchor": "middle"
+    },
+    {
+      "type": "faderV",
+      "bind": "PARAM_GAIN9",
+      "x": 219.9,
+      "y": 88,
+      "h": 29
+    },
+    {
+      "type": "light",
+      "bind": "LIGHT_BAND9",
+      "x": 225.4,
+      "y": 106.5,
+      "color": "#d9d9d9",
+      "band": 8
+    },
+    {
+      "type": "output",
+      "bind": "OUTPUT_B9",
+      "x": 219.9,
+      "y": 117.5
+    },
+    {
+      "type": "label",
+      "text": "Noise",
+      "x": 219.9,
+      "y": 127.2,
+      "size": 5.5,
+      "anchor": "middle"
+    },
+    {
+      "type": "faderV",
+      "bind": "PARAM_GAIN10",
+      "x": 237.8,
+      "y": 88,
+      "h": 29
+    },
+    {
+      "type": "light",
+      "bind": "LIGHT_BAND10",
+      "x": 243.3,
+      "y": 106.5,
+      "color": "#d91414",
+      "band": 9
+    },
+    {
+      "type": "output",
+      "bind": "OUTPUT_B10",
+      "x": 237.8,
+      "y": 117.5
+    },
+    {
+      "type": "label",
+      "text": "Perc",
+      "x": 237.8,
+      "y": 127.2,
+      "size": 5.5,
+      "anchor": "middle"
+    }
+  ]
+}

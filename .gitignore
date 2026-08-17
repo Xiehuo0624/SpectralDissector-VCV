@@ -1,0 +1,8 @@
+build/
+dist/
+sdk/
+dep/
+*.o
+*.dylib
+*.dSYM/
+.DS_Store
