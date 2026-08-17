@@ -33,6 +33,10 @@ PATH=/opt/homebrew/bin:$PATH make RACK_DIR=../sdk dist
 
 `make dist` requires `tar`, `zstd`, and macOS `rsync`.
 
+## Changelog
+
+See `CHANGELOG.md`.
+
 ## License
 
 GPL-3.0-or-later. See `LICENSE` for the full GPLv3 text.
