@@ -143,6 +143,10 @@ struct SpectralDissectorModule : Module {
 	// P5.2 (D11): 分析仪显示刻度（右键菜单切换; 默认对数 dB, 参照
 	// scope.maxpat spectroscope~ 观感）。纯显示层状态。
 	bool spectrumLogScale_ = true;
+	// 2026-08-19 用户指示: 分析仪图例 chip 点击只切换该 band 的显示层
+	// 可见性（仅图像开关），不再写 PARAM_BAND*，音频通路保持全开。
+	bool spectrumBandVisible_[10] = {true, true, true, true, true,
+	                                 true, true, true, true, true};
 	// 2026-08-18 用户指示: 深浅主题改为每模块独立设置,
 	// 不再切换 Rack 全局 preferDarkPanels（原生模块不受影响）。
 	bool panelDark_ = true;
@@ -471,7 +475,7 @@ struct SpectrumAnalyzerWidget : widget::TransparentWidget {
 			int cols = std::max(1, (int)specW);
 			for (int b = 0; b < 10; ++b) {
 				const float* data = module->engine.spectrumData(front, b);
-				bool on = module->params[SpectralDissectorModule::PARAM_BAND1 + b].getValue() > 0.5f;
+				bool on = module->spectrumBandVisible_[b];
 				NVGcolor col = sdpanel::bandColor(b);
 				col.a = on ? 0.85f : 0.13f;
 
@@ -504,8 +508,7 @@ struct SpectrumAnalyzerWidget : widget::TransparentWidget {
 		nvgTextAlign(vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
 		for (int b = 0; b < 10; ++b) {
 			float x0 = 2.0f + b * (chipW + gap);
-			bool on = !module ||
-				module->params[SpectralDissectorModule::PARAM_BAND1 + b].getValue() > 0.5f;
+			bool on = !module || module->spectrumBandVisible_[b];
 			NVGcolor col = sdpanel::bandColor(b);
 			if (!on)
 				col.a = 0.22f;
@@ -538,7 +541,7 @@ struct SpectrumAnalyzerWidget : widget::TransparentWidget {
 				menu->addChild(createMenuItem(std::to_string(n), CHECKMARK(module->fftSize_ == n),
 					[=]() { module->setFftSize(n); }));
 			}
-			menu->addChild(createMenuLabel("Legend chip click = band on/off"));
+			menu->addChild(createMenuLabel("Legend chip click = analyzer layer show/hide"));
 			e.consume(this);
 			return;
 		}
@@ -552,9 +555,9 @@ struct SpectrumAnalyzerWidget : widget::TransparentWidget {
 			if (e.pos.y >= ly && e.pos.y <= ly + chipH) {
 				int b = (int)((e.pos.x - 2.0f) / (chipW + gap));
 				if (b >= 0 && b < 10) {
-					int pid = SpectralDissectorModule::PARAM_BAND1 + b;
-					bool on = module->params[pid].getValue() > 0.5f;
-					module->paramQuantities[pid]->setValue(on ? 0.0f : 1.0f);
+					// 2026-08-19 用户指示: 图例 chip 只切换分析仪显示层,
+					// 不写 PARAM_BAND*, DSP 通路完全不变。
+					module->spectrumBandVisible_[b] = !module->spectrumBandVisible_[b];
 					e.consume(this);
 				}
 			}

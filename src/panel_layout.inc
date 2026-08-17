@@ -311,13 +311,24 @@ addOutput(createOutputCentered<sdpanel::ThemedPort>(mm2px(Vec(315.0f, 118.5f)), 
 }
 {
 	auto* lw = new sdpanel::LabelWidget;
-	lw->text = "泻火Xiehuo";
+	lw->text = "泻火";
 	lw->fontSize = 12.0f;
 	lw->center = false;
 	lw->dim = true;
 	lw->module = module;
 	lw->box.pos = mm2px(Vec(59.6f, 3.959f));
-	lw->box.size = mm2px(Vec(21.512f, 5.419f));
+	lw->box.size = mm2px(Vec(6.394f, 5.419f));
+	addChild(lw);
+}
+{
+	auto* lw = new sdpanel::LabelWidget;
+	lw->text = "Xiehuo";
+	lw->fontSize = 11.0f;
+	lw->center = false;
+	lw->dim = true;
+	lw->module = module;
+	lw->box.pos = mm2px(Vec(67.7f, 4.297f));
+	lw->box.size = mm2px(Vec(15.213f, 5.08f));
 	addChild(lw);
 }
 {
