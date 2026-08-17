@@ -2,7 +2,7 @@
 
 VCV Rack 2 module — a high-fidelity port of **Spectral Dissector 26.08.13 (Max for Live)** by Xiehuo.
 
-A real-time 10-band spectral dissector: 4096-point STFT (Hann, hop 1024, 4x overlap), zero-latency per-bin HPSS, cepstral noise-floor envelope, and cascade masks split the input into 8 harmonic layers (Band 1–8), noise (Band 9), and percussive content (Band 10). Default parameter behavior is verified sample-exact against the 26.08.13 golden model.
+A real-time 10-band spectral dissector: 4096-point STFT (Hann, hop 1024, 4x overlap), zero-latency per-bin HPSS, cepstral noise-floor envelope, and cascade masks split the input into 8 harmonic layers (Band 1–8), noise (Band 9), and percussive content (Band 10). Default parameter behavior is verified sample-exact against the 26.08.13 golden model. Original Max for Live device page: https://caohaoxuan.com/project-template.html?project=spectral-dissector
 
 ## I/O
 
