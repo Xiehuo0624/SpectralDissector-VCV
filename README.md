@@ -15,9 +15,17 @@ A real-time 10-band spectral dissector: 4096-point STFT by default (Hann, hop 10
 ## Controls
 
 - 46 parameters: core DSP controls (Threshold, Spacing, Focus, Tilt, Gate, Blur, Perc, Rise, Fall, Detail, Band 1–7 Offset), Dry switch, 10 band on/off switches, 10 per-band gain faders, 8 CV attenuators.
-- Built-in spectrum analyzer: click the legend chips at the bottom to toggle bands; right-click the analyzer to switch log/linear scale.
+- Built-in spectrum analyzer: click the legend chips at the bottom to show/hide band layers in the analyzer (audio routing is not affected); right-click the analyzer to switch log/linear scale.
 - Dark and light panels: right-click the module and toggle **Panel theme → Use dark panels**. The setting is per-module and saved with the patch; it does not change Rack's global panel theme.
 - FFT window size: right-click the module (or the analyzer) and choose **FFT window size → 1024 / 2048 / 4096 / 8192**. Default is 4096 (original 26.08.13 behavior). The choice is saved with the patch.
+
+## Spectral Dissector R (right-channel expander)
+
+Place **Spectral Dissector R** directly to the right of Spectral Dissector; the two modules link automatically.
+
+- **IN R** — mono audio input for the right channel. When connected, it overrides `ch1` of the main module's poly audio input. When unconnected, the main module keeps its normal behavior (poly `ch1`, or mono `R = L`).
+- **12 mono outputs** — the right channel of the main module's processed outputs, in the same order as the main module: **Dry R**, **Band 1 R … Band 10 R**, **Mix R**.
+- Audio only: no parameters, CV inputs, or lights. The expander copies voltages; it runs no DSP of its own and adds no processing latency relative to the main module's own outputs.
 
 ## Install
 
