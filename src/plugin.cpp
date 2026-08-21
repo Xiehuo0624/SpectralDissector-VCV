@@ -145,6 +145,13 @@ struct SpectralDissectorModule : Module {
 	sdrack::DspEngine engine;
 	float lightEnv_[10] = {};   // 每频带活动灯峰值包络（音频线程内推进）
 	float lastSampleRate_ = 44100.0f;
+	// 2026-08-21: 右扩展器接管 R 输出时的供数缓冲。右扩展器连接后,
+	// 主模块 12 个输出口只输出 ch0(L); R 声道写入这些字段, 由
+	// SpectralDissectorR 在同一样本内读取（主模块先处理, 扩展器后读）。
+	// 未连接扩展器时字段不使用, 主模块输出保持 2ch L/R（原行为）。
+	float expanderDryR_ = 0.0f;
+	float expanderBandR_[10] = {};
+	float expanderMixR_ = 0.0f;
 	// P5.2 (D11): 分析仪显示刻度（右键菜单切换; 默认对数 dB, 参照
 	// scope.maxpat spectroscope~ 观感）。纯显示层状态。
 	bool spectrumLogScale_ = true;
@@ -331,6 +338,12 @@ struct SpectralDissectorModule : Module {
 				inR = re->inputs[0].getVoltage();
 		}
 
+		// 2026-08-21 用户定稿: 连接右扩展器时, 主模块输出口只输出
+		// ch0(L); R 声道由 expander*R_ 字段交给扩展器输出。未连接时
+		// 保持 2ch poly 输出（2.0.0 行为）。
+		bool rExpanderActive = rightExpander.module
+			&& rightExpander.module->model == modelSpectralDissectorR;
+
 		// 逐样本输出（engine 通路 = docs/06 §1.2 口径, 直接透传到端口）
 		float dryL = 0.0f, dryR = 0.0f;
 		float bandL[10], bandR[10];
@@ -342,17 +355,24 @@ struct SpectralDissectorModule : Module {
 		}
 		engine.process(inL, inR, &dryL, &dryR, bL, bR);
 
-		// D19: poly 输出 —— 每口 2ch（ch0=L, ch1=R）
-		outputs[OUTPUT_DRY].setChannels(2);
+		// D19: poly 输出。无扩展器 = 每口 2ch（ch0=L, ch1=R）;
+		// 有扩展器 = 每口 mono ch0（R 走 expander*R_ 字段）。
+		outputs[OUTPUT_DRY].setChannels(rExpanderActive ? 1 : 2);
 		outputs[OUTPUT_DRY].setVoltage(dryL, 0);
-		outputs[OUTPUT_DRY].setVoltage(dryR, 1);
+		if (rExpanderActive)
+			expanderDryR_ = dryR;
+		else
+			outputs[OUTPUT_DRY].setVoltage(dryR, 1);
 		// D20: MIX = 各 band 推子后全求和（engine 输出已是
 		// OutputGate × bandGain 之后; Dry 不含）
 		float mixL = 0.0f, mixR = 0.0f;
 		for (int b = 0; b < 10; ++b) {
-			outputs[bandOutput(b)].setChannels(2);
+			outputs[bandOutput(b)].setChannels(rExpanderActive ? 1 : 2);
 			outputs[bandOutput(b)].setVoltage(bandL[b], 0);
-			outputs[bandOutput(b)].setVoltage(bandR[b], 1);
+			if (rExpanderActive)
+				expanderBandR_[b] = bandR[b];
+			else
+				outputs[bandOutput(b)].setVoltage(bandR[b], 1);
 			mixL += bandL[b];
 			mixR += bandR[b];
 			// 活动灯: 瞬时攻击 + 指数释放的峰值包络（免锁, 音频线程内）
@@ -364,9 +384,12 @@ struct SpectralDissectorModule : Module {
 				e = std::max(0.0f, e - e * 0.0004f);   // ~57ms 释放时间常数 @44.1k
 			lights[LIGHT_BAND1 + b].setBrightness(math::clamp(e * 0.25f, 0.0f, 1.0f));
 		}
-		outputs[OUTPUT_MIX].setChannels(2);
+		outputs[OUTPUT_MIX].setChannels(rExpanderActive ? 1 : 2);
 		outputs[OUTPUT_MIX].setVoltage(mixL, 0);
-		outputs[OUTPUT_MIX].setVoltage(mixR, 1);
+		if (rExpanderActive)
+			expanderMixR_ = mixR;
+		else
+			outputs[OUTPUT_MIX].setVoltage(mixR, 1);
 	}
 };
 
@@ -625,11 +648,10 @@ Model* modelSpectralDissector = createModel<SpectralDissectorModule, SpectralDis
 // Spectral Dissector R —— 右声道 breakout 扩展器（2026-08-21）
 // ------------------------------------------------------------
 // 1 输入 + 12 输出, 仅音频 I/O, 无参数/CV/灯。
-// 通信采用 SDK 允许的“拉取”模式: 扩展器 process() 直接读左侧
-// SpectralDissector 12 个 poly 输出口的 ch1(R)。主模块与本模块
-// 同插件、加入顺序保证主模块先处理 → 同一采样内复制, 无额外延迟。
-// 输入方向: 主模块只加了 4 行右扩展器 R 输入钩子（见上）,
-// 主模块设计（面板/端口/参数/DSP）不变。
+// 2026-08-21 用户定稿: 连接本扩展器后, 主模块 12 个输出口只输出
+// ch0(L); R 声道由主模块 expander*R_ 字段交给本模块输出。本模块
+// process() 读这些字段（主模块先处理 → 同一采样复制, 无额外延迟）。
+// 输入方向: 主模块 IN R 已连线时覆盖 poly ch1; 未连线回退原语义。
 // ============================================================
 struct SpectralDissectorRModule : Module {
 	enum InputIds {
@@ -664,21 +686,21 @@ struct SpectralDissectorRModule : Module {
 	}
 
 	void process(const ProcessArgs& args) override {
-		Module* left = leftExpander.module;
-		bool ok = left && left->model == modelSpectralDissector;
-
-		auto readR = [&](int mainOutId) -> float {
-			return ok ? left->outputs[mainOutId].getVoltage(1) : 0.0f;
-		};
+		// 2026-08-21: R 声道不再从主模块输出口 ch1 复制, 改读主模块
+		// 专供扩展器的 expander*R_ 字段（主模块连接扩展器时输出口只
+		// 写 ch0, 因此 ch1 已无数据）。主模块先处理 → 同一样本读取。
+		SpectralDissectorModule* left = nullptr;
+		if (leftExpander.module && leftExpander.module->model == modelSpectralDissector)
+			left = static_cast<SpectralDissectorModule*>(leftExpander.module);
 
 		outputs[OUTPUT_DRY_R].setChannels(1);
-		outputs[OUTPUT_DRY_R].setVoltage(readR(SpectralDissectorModule::OUTPUT_DRY));
+		outputs[OUTPUT_DRY_R].setVoltage(left ? left->expanderDryR_ : 0.0f);
 		for (int b = 0; b < 10; ++b) {
 			outputs[OUTPUT_B1_R + b].setChannels(1);
-			outputs[OUTPUT_B1_R + b].setVoltage(readR(SpectralDissectorModule::bandOutput(b)));
+			outputs[OUTPUT_B1_R + b].setVoltage(left ? left->expanderBandR_[b] : 0.0f);
 		}
 		outputs[OUTPUT_MIX_R].setChannels(1);
-		outputs[OUTPUT_MIX_R].setVoltage(readR(SpectralDissectorModule::OUTPUT_MIX));
+		outputs[OUTPUT_MIX_R].setVoltage(left ? left->expanderMixR_ : 0.0f);
 	}
 };
 

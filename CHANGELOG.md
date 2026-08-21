@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.1 — 2026-08-21
+
+- While **Spectral Dissector R** is attached, the main module's 12 outputs now switch to mono `ch0` (L-only) and the right channel is routed to the expander; removing the expander restores the normal 2ch poly outputs. This avoids accidental L+R downmixing in mono destinations that sum poly channels.
+
 ## 2.1.0 — 2026-08-21
 
 - New expander module **Spectral Dissector R**: place it to the right of Spectral Dissector for a mono right-channel input and 12 mono right-channel outputs (Dry R / Band 1–10 R / Mix R). Audio only; the main module receives a minimal, no-effect-when-absent right-expander input hook.

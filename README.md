@@ -23,8 +23,10 @@ A real-time 10-band spectral dissector: 4096-point STFT by default (Hann, hop 10
 
 Place **Spectral Dissector R** directly to the right of Spectral Dissector; the two modules link automatically.
 
-- **IN R** — mono audio input for the right channel. When connected, it overrides `ch1` of the main module's poly audio input. When unconnected, the main module keeps its normal behavior (poly `ch1`, or mono `R = L`).
+- **IN R** — mono audio input for the right channel. When connected, it overrides `ch1` of the main module's poly audio input. When unconnected, the main module keeps its normal input semantics (poly `ch1`, or mono `R = L`).
+- **Main outputs become mono when the expander is attached**: all 12 main outputs (Dry / B1–B10 / Mix) output **ch0 (L) only**. The right channel moves to the expander.
 - **12 mono outputs** — the right channel of the main module's processed outputs, in the same order as the main module: **Dry R**, **Band 1 R … Band 10 R**, **Mix R**.
+- Remove the expander and the main module returns to its normal 2-channel poly outputs (`ch0 = L`, `ch1 = R`).
 - Audio only: no parameters, CV inputs, or lights. The expander copies voltages; it runs no DSP of its own and adds no processing latency relative to the main module's own outputs.
 
 ## Install
